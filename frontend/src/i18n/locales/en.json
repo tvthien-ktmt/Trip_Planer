@@ -1,0 +1,31 @@
+{
+  "header": {
+    "home": "Home",
+    "flights": "Flights",
+    "hotels": "Hotels",
+    "tours": "Tours",
+    "travelGuide": "Travel Guide",
+    "contact": "Contact",
+    "login": "Login",
+    "register": "Register",
+    "myBookings": "My Bookings",
+    "settings": "Settings",
+    "logout": "Logout"
+  },
+  "home": {
+    "searchTitle": "Find your perfect flight",
+    "featuredTitle": "Featured Destinations",
+    "featuredSubtitle": "Discover the beauty of Vietnam and the World",
+    "viewAll": "View all",
+    "fromPrice": "From"
+  },
+  "footer": {
+    "about": "About Us",
+    "contact": "Contact Us",
+    "terms": "Terms of Use",
+    "privacy": "Privacy Policy",
+    "newsletter": "Newsletter",
+    "newsletterDesc": "Get the latest deals from Trip Planner",
+    "subscribe": "Subscribe"
+  }
+}

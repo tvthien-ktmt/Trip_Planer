@@ -1,0 +1,31 @@
+{
+  "header": {
+    "home": "Trang chủ",
+    "flights": "Vé máy bay",
+    "hotels": "Khách sạn",
+    "tours": "Tours",
+    "travelGuide": "Cẩm nang du lịch",
+    "contact": "Liên hệ",
+    "login": "Đăng nhập",
+    "register": "Đăng ký",
+    "myBookings": "Chuyến đi của tôi",
+    "settings": "Cài đặt",
+    "logout": "Đăng xuất"
+  },
+  "home": {
+    "searchTitle": "Tìm chuyến bay hoàn hảo của bạn",
+    "featuredTitle": "Điểm đến nổi bật",
+    "featuredSubtitle": "Khám phá vẻ đẹp của Việt Nam và Thế giới",
+    "viewAll": "Xem tất cả",
+    "fromPrice": "Giá từ"
+  },
+  "footer": {
+    "about": "Về chúng tôi",
+    "contact": "Liên hệ",
+    "terms": "Điều khoản sử dụng",
+    "privacy": "Chính sách bảo mật",
+    "newsletter": "Đăng ký nhận tin",
+    "newsletterDesc": "Nhận các ưu đãi mới nhất từ Trip Planner",
+    "subscribe": "Đăng ký"
+  }
+}

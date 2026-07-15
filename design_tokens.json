@@ -1,0 +1,959 @@
+{
+  "colors": [
+    "#ffffff",
+    "#23262f",
+    "#353945",
+    "#4776d0",
+    "#000000",
+    "#fbbc05",
+    "#ea4335",
+    "#34a853",
+    "#4285f4",
+    "#01aeef",
+    "#e6e8ec",
+    "#777e90",
+    "#c4c4c4",
+    "#b1b5c3",
+    "#3b71fe",
+    "#141416",
+    "#f4f5f6",
+    "#f4f5f9",
+    "#2e2e2e",
+    "#3b3e44",
+    "#f65540",
+    "#eb5757",
+    "#fcfcfd",
+    "#989898",
+    "#1a4ed3",
+    "#ffc83a",
+    "#0b7dcf",
+    "#1b69bc",
+    "#273b7d",
+    "#499fdd",
+    "#37474d",
+    "#c93f1f",
+    "#f39200",
+    "#007db0",
+    "#48d5b5",
+    "#2b303d",
+    "#ffd400",
+    "#eef9f2",
+    "#58c27d",
+    "#fff4ee",
+    "#fa8f54",
+    "#ebf1ff",
+    "#979797",
+    "#fee2b6",
+    "#333333",
+    "#eaf0ff",
+    "#ffe0e2",
+    "#d8e3ff",
+    "#ececec",
+    "#dddddd",
+    "#ffd166",
+    "#01d474",
+    "#ff6370",
+    "#fbf6c7",
+    "#fc66a6",
+    "#f1b09b",
+    "#ec8e65",
+    "#f6bc33",
+    "#d89b0e",
+    "#f0e898",
+    "#d5482a",
+    "#ec6c47",
+    "#ec8e67",
+    "#b83013",
+    "#eff0ea",
+    "#3f487f",
+    "#3e4885",
+    "#3052a9",
+    "#05185a",
+    "#312e63",
+    "#f26aaa",
+    "#3f4785",
+    "#355fb3",
+    "#260500",
+    "#355eba",
+    "#48acfa",
+    "#0b1f83",
+    "#42447c",
+    "#fefefe",
+    "#444779",
+    "#355cb7",
+    "#eeefe9",
+    "#345267",
+    "#6de277",
+    "#4aabf8",
+    "#1081b0",
+    "#3e4981",
+    "#1c43ae",
+    "#0f2e9a",
+    "#fee9dd",
+    "#22372b",
+    "#422d22",
+    "#283558",
+    "#131826",
+    "#4e3b36",
+    "#12224c",
+    "#cfcfcf",
+    "#92929d",
+    "#f5f6fa",
+    "#4f4f4f",
+    "#d5dae8",
+    "#dadada",
+    "#1e1f20",
+    "#f4f4f4",
+    "#ffc542",
+    "#191e2e",
+    "#def3e5",
+    "#fff6e0",
+    "#2e453f",
+    "#4f483a",
+    "#0e0101",
+    "#070707",
+    "#84878b",
+    "#007ebb",
+    "#03a9f4",
+    "#1976d2",
+    "#fafafa",
+    "#145ce6",
+    "#c2c2c2",
+    "#f9cb62",
+    "#fcfcfc",
+    "#202028",
+    "#363636",
+    "#2e9bff",
+    "#0dbaf5",
+    "#f2fbfa",
+    "#7ed4cf",
+    "#fec442",
+    "#ffeff1",
+    "#2c373f",
+    "#0078d7",
+    "#1bbff3",
+    "#0d97c2",
+    "#d8d8d8",
+    "#b5b5be",
+    "#554243",
+    "#e7ecf3",
+    "#2e68ff",
+    "#f2994a",
+    "#232324",
+    "#fdd2bb",
+    "#fdc7a9",
+    "#fff1d1",
+    "#ffe8b3",
+    "#e5f6f5",
+    "#c4d4ff",
+    "#d8f2f1",
+    "#cdedd8",
+    "#ffd0d4",
+    "#b1c6ff",
+    "#cbeeec",
+    "#bce7cb",
+    "#ffc1c6",
+    "#fffaf0",
+    "#fcb187",
+    "#f5b318",
+    "#769cfe",
+    "#b2e5e2",
+    "#8ad4a4",
+    "#ff929b",
+    "#ff4714"
+  ],
+  "typography": [
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 132,
+      "lineHeight": 150
+    },
+    {
+      "family": "Inter",
+      "weight": 800,
+      "size": 64,
+      "lineHeight": 77.45454406738281
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 40,
+      "lineHeight": 60
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 40,
+      "lineHeight": 60
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 32,
+      "lineHeight": 38.727272033691406
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 30,
+      "lineHeight": 45
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 30,
+      "lineHeight": 36.30681610107422
+    },
+    {
+      "family": "DM Sans",
+      "weight": 700,
+      "size": 28,
+      "lineHeight": 41
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 26,
+      "lineHeight": 36
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 24,
+      "lineHeight": 36
+    },
+    {
+      "family": "Roboto",
+      "weight": 400,
+      "size": 24,
+      "lineHeight": 28.125
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 24,
+      "lineHeight": 36
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 24,
+      "lineHeight": 36
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 20,
+      "lineHeight": 28
+    },
+    {
+      "family": "Gilroy",
+      "weight": 800,
+      "size": 20,
+      "lineHeight": 24.5
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 20,
+      "lineHeight": 24.204544067382812
+    },
+    {
+      "family": "DM Sans",
+      "weight": 700,
+      "size": 20,
+      "lineHeight": 26.040000915527344
+    },
+    {
+      "family": "Inter",
+      "weight": 800,
+      "size": 20,
+      "lineHeight": 24.204544067382812
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 20,
+      "lineHeight": 30
+    },
+    {
+      "family": "DM Sans",
+      "weight": 500,
+      "size": 20,
+      "lineHeight": 30
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 18,
+      "lineHeight": 28
+    },
+    {
+      "family": "Inter",
+      "weight": 400,
+      "size": 18,
+      "lineHeight": 32
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 18,
+      "lineHeight": 27
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 18,
+      "lineHeight": 28
+    },
+    {
+      "family": "DM Sans",
+      "weight": 500,
+      "size": 18,
+      "lineHeight": 23.43600082397461
+    },
+    {
+      "family": "Roboto",
+      "weight": 400,
+      "size": 18,
+      "lineHeight": 21.09375
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 17.647058486938477,
+      "lineHeight": 21.356950759887695
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 17.593582153320312,
+      "lineHeight": 21.292232513427734
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 17.00400161743164,
+      "lineHeight": 23.544002532958984
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 17,
+      "lineHeight": 26
+    },
+    {
+      "family": "Inter",
+      "weight": 400,
+      "size": 17,
+      "lineHeight": 29
+    },
+    {
+      "family": "Inter",
+      "weight": 400,
+      "size": 16.955554962158203,
+      "lineHeight": 24.22222137451172
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 16,
+      "lineHeight": 24
+    },
+    {
+      "family": "Inter",
+      "weight": 400,
+      "size": 16,
+      "lineHeight": 24
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 16,
+      "lineHeight": 24
+    },
+    {
+      "family": "DM Sans",
+      "weight": 400,
+      "size": 16,
+      "lineHeight": 24
+    },
+    {
+      "family": "Inter",
+      "weight": 800,
+      "size": 16,
+      "lineHeight": 19.363636016845703
+    },
+    {
+      "family": "DM Sans",
+      "weight": 500,
+      "size": 16,
+      "lineHeight": 24
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 16,
+      "lineHeight": 24
+    },
+    {
+      "family": "Roboto",
+      "weight": 500,
+      "size": 16,
+      "lineHeight": 18.75
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 15.82978630065918,
+      "lineHeight": 23.744680404663086
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 15.084232330322266,
+      "lineHeight": 22.6263484954834
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 15,
+      "lineHeight": 20
+    },
+    {
+      "family": "Inter",
+      "weight": 400,
+      "size": 15,
+      "lineHeight": 18.15340805053711
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 14.920151710510254,
+      "lineHeight": 22.38022804260254
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 14.510578155517578,
+      "lineHeight": 17.56109619140625
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 14.510577201843262,
+      "lineHeight": 17.56109619140625
+    },
+    {
+      "family": "Inter",
+      "weight": 400,
+      "size": 14,
+      "lineHeight": 20
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 14,
+      "lineHeight": 20
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 14,
+      "lineHeight": 21
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 14,
+      "lineHeight": 16.94318199157715
+    },
+    {
+      "family": "Roboto",
+      "weight": 400,
+      "size": 14,
+      "lineHeight": 16.40625
+    },
+    {
+      "family": "DM Sans",
+      "weight": 400,
+      "size": 14,
+      "lineHeight": 21
+    },
+    {
+      "family": "Poppins",
+      "weight": 500,
+      "size": 14,
+      "lineHeight": 14
+    },
+    {
+      "family": "Roboto",
+      "weight": 500,
+      "size": 14,
+      "lineHeight": 27
+    },
+    {
+      "family": "DM Sans",
+      "weight": 500,
+      "size": 14,
+      "lineHeight": 21
+    },
+    {
+      "family": "DM Sans",
+      "weight": 500,
+      "size": 13.05951976776123,
+      "lineHeight": 17.003496170043945
+    },
+    {
+      "family": "DM Sans",
+      "weight": 500,
+      "size": 13,
+      "lineHeight": 16.926000595092773
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 13,
+      "lineHeight": 15.732954025268555
+    },
+    {
+      "family": "Roboto",
+      "weight": 400,
+      "size": 13,
+      "lineHeight": 15.234375
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 12.352941513061523,
+      "lineHeight": 17.647058486938477
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 12.352941513061523,
+      "lineHeight": 18.52941131591797
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 12.315507888793945,
+      "lineHeight": 17.593582153320312
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 12.315507888793945,
+      "lineHeight": 18.473262786865234
+    },
+    {
+      "family": "Inter",
+      "weight": 400,
+      "size": 12,
+      "lineHeight": 18
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 12,
+      "lineHeight": 14.522727012634277
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 12,
+      "lineHeight": 8
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 12,
+      "lineHeight": 14.522727012634277
+    },
+    {
+      "family": "Roboto",
+      "weight": 400,
+      "size": 12,
+      "lineHeight": 14.0625
+    },
+    {
+      "family": "Inter",
+      "weight": 800,
+      "size": 12,
+      "lineHeight": 14.522727012634277
+    },
+    {
+      "family": "DM Sans",
+      "weight": 400,
+      "size": 12,
+      "lineHeight": 16
+    },
+    {
+      "family": "DM Sans",
+      "weight": 500,
+      "size": 12,
+      "lineHeight": 20
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 11.772001266479492,
+      "lineHeight": 17.658000946044922
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 11.730935096740723,
+      "lineHeight": 17.596403121948242
+    },
+    {
+      "family": "DM Sans",
+      "weight": 400,
+      "size": 11.6084623336792,
+      "lineHeight": 17.41269302368164
+    },
+    {
+      "family": "DM Sans",
+      "weight": 400,
+      "size": 11.608461380004883,
+      "lineHeight": 17.41269302368164
+    },
+    {
+      "family": "Inter",
+      "weight": 400,
+      "size": 11.280838966369629,
+      "lineHeight": 16.1154842376709
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 11,
+      "lineHeight": 16.595745086669922
+    },
+    {
+      "family": "Inter",
+      "weight": 400,
+      "size": 11,
+      "lineHeight": 13.3125
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 11,
+      "lineHeight": 13.3125
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 11,
+      "lineHeight": 17
+    },
+    {
+      "family": "DM Sans",
+      "weight": 500,
+      "size": 10.6054048538208,
+      "lineHeight": 17.675674438476562
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 10.6054048538208,
+      "lineHeight": 12.834949493408203
+    },
+    {
+      "family": "Inter",
+      "weight": 400,
+      "size": 10.464000701904297,
+      "lineHeight": 15.696001052856445
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 10.464000701904297,
+      "lineHeight": 15.696001052856445
+    },
+    {
+      "family": "Gilroy",
+      "weight": 800,
+      "size": 10.216717720031738,
+      "lineHeight": 12.51547908782959
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 10.122020721435547,
+      "lineHeight": 12.249945640563965
+    },
+    {
+      "family": "DM Sans",
+      "weight": 500,
+      "size": 10,
+      "lineHeight": 13.020000457763672
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 10,
+      "lineHeight": 15
+    },
+    {
+      "family": "Inter",
+      "weight": 400,
+      "size": 10,
+      "lineHeight": 15
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 10,
+      "lineHeight": 15
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 9.196808815002441,
+      "lineHeight": 13.138298034667969
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 9.195045471191406,
+      "lineHeight": 14.303404808044434
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 9.195045471191406,
+      "lineHeight": 14.303404808044434
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 9.156000137329102,
+      "lineHeight": 13.734001159667969
+    },
+    {
+      "family": "Inter",
+      "weight": 400,
+      "size": 9.156000137329102,
+      "lineHeight": 13.080000877380371
+    },
+    {
+      "family": "Inter",
+      "weight": 400,
+      "size": 9,
+      "lineHeight": 13.185483932495117
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 9,
+      "lineHeight": 15
+    },
+    {
+      "family": "DM Sans",
+      "weight": 500,
+      "size": 9,
+      "lineHeight": 11.718000411987305
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 8.703421592712402,
+      "lineHeight": 12.433460235595703
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 8.17337417602539,
+      "lineHeight": 12.260061264038086
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 8.107743263244629,
+      "lineHeight": 11.582489967346191
+    },
+    {
+      "family": "Inter",
+      "weight": 400,
+      "size": 8,
+      "lineHeight": 12
+    },
+    {
+      "family": "DM Sans",
+      "weight": 500,
+      "size": 8,
+      "lineHeight": 10.416000366210938
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 8,
+      "lineHeight": 9.681818008422852
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 8,
+      "lineHeight": 21
+    },
+    {
+      "family": "Roboto",
+      "weight": 400,
+      "size": 8,
+      "lineHeight": 9.375
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 7.997265815734863,
+      "lineHeight": 12
+    },
+    {
+      "family": "DM Sans",
+      "weight": 500,
+      "size": 7.665597438812256,
+      "lineHeight": 9.980607986450195
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 7.627659797668457,
+      "lineHeight": 11.441489219665527
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 7.542116165161133,
+      "lineHeight": 9.127674102783203
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 7.460075855255127,
+      "lineHeight": 9.028387069702148
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 7.315435886383057,
+      "lineHeight": 10.973154067993164
+    },
+    {
+      "family": "Inter",
+      "weight": 400,
+      "size": 7.048276424407959,
+      "lineHeight": 10.068965911865234
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 7,
+      "lineHeight": 8.471590995788574
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 7,
+      "lineHeight": 8.471590995788574
+    },
+    {
+      "family": "Inter",
+      "weight": 400,
+      "size": 7,
+      "lineHeight": 8.471590995788574
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 7,
+      "lineHeight": 10
+    },
+    {
+      "family": "DM Sans",
+      "weight": 500,
+      "size": 7,
+      "lineHeight": 9.11400032043457
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 6.7522125244140625,
+      "lineHeight": 8.171711921691895
+    },
+    {
+      "family": "Roboto",
+      "weight": 400,
+      "size": 6.130030632019043,
+      "lineHeight": 7.183629512786865
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 6.130030632019043,
+      "lineHeight": 7.41873025894165
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 6.130030632019043,
+      "lineHeight": 7.41873025894165
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 6,
+      "lineHeight": 8
+    },
+    {
+      "family": "Inter",
+      "weight": 400,
+      "size": 6,
+      "lineHeight": 7.995110511779785
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 6,
+      "lineHeight": 7.261363506317139
+    },
+    {
+      "family": "DM Sans",
+      "weight": 500,
+      "size": 6,
+      "lineHeight": 9
+    },
+    {
+      "family": "Inter",
+      "weight": 400,
+      "size": 5.78761100769043,
+      "lineHeight": 7.004324436187744
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 5.085106372833252,
+      "lineHeight": 7.627659797668457
+    },
+    {
+      "family": "Inter",
+      "weight": 500,
+      "size": 3.8138298988342285,
+      "lineHeight": 4.615601062774658
+    },
+    {
+      "family": "Inter",
+      "weight": 700,
+      "size": 3.79575777053833,
+      "lineHeight": 2.5305051803588867
+    },
+    {
+      "family": "Inter",
+      "weight": 600,
+      "size": 3.79575777053833,
+      "lineHeight": 4.593729496002197
+    }
+  ]
+}

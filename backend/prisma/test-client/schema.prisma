@@ -1,0 +1,30 @@
+generator client {
+  provider = "prisma-client-js"
+  output   = "./test-client"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = "file:./test.db"
+}
+
+model Booking {
+  id          Int       @id @default(autoincrement())
+  bookingCode String    @unique @default("TEST")
+  userId      Int       @default(1)
+  type        String    @default("FLIGHT")
+  status      String    @default("DRAFT")
+  totalAmount Decimal   @default(0)
+  currency    String    @default("VND")
+  expiresAt   DateTime?
+}
+
+model FlightSeat {
+  id          Int     @id @default(autoincrement())
+  flightId    Int     @default(1)
+  seatCode    String  @default("1A")
+  fareClassId Int     @default(1)
+  status      String  @default("AVAILABLE")
+  extraFee    Decimal @default(0)
+  version     Int     @default(0)
+}

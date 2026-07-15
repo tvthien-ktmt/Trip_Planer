@@ -1,0 +1,109 @@
+@import url('https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400..700;1,9..40,400..700&family=Inter:ital,opsz,wght@0,14..32,400..800;1,14..32,400..800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@theme {
+  /* Colors - Light Mode (Blue Theme) */
+  --color-ocean-900: #05185a; /* Deep Blue for dark elements */
+  --color-ocean-600: #3b71fe; /* Primary Blue from tokens */
+  --color-lantern-500: #f59e0b; /* Amber */
+  --color-coral-500: #ef4444; /* Red CTA */
+  --color-mist-50: #f4f5f6; /* Light Slate */
+  --color-ink-900: #141416;
+  --color-ink-500: #777e90;
+  --color-line-200: #e6e8ec;
+  --color-danger: #eb5757;
+
+  /* Colors - Dark Mode Mapping (Blue Theme) */
+  --color-ocean-900-dark: #141416; /* Very Dark Slate */
+  --color-ocean-surface-dark: #23262f;
+  --color-lantern-500-dark: #ffc83a;
+  --color-coral-500-dark: #f65540;
+  --color-ink-50-dark: #fcfcfd;
+  --color-ink-400-dark: #b1b5c3;
+  --color-line-dark: #353945;
+
+  /* Typography */
+  --font-display: 'DM Sans', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-utility: 'JetBrains Mono', monospace;
+
+  /* Type Scale */
+  --text-display-xl: 3.5rem;
+  --text-display-xl--line-height: 1.05;
+  --text-display-lg: 2.5rem;
+  --text-display-lg--line-height: 1.1;
+  --text-display-md: 1.875rem;
+  --text-display-md--line-height: 1.2;
+  --text-heading: 1.25rem;
+  --text-heading--line-height: 1.3;
+  --text-body-lg: 1.125rem;
+  --text-body-lg--line-height: 1.6;
+  --text-body: 1rem;
+  --text-body--line-height: 1.6;
+  --text-caption: 0.875rem;
+  --text-caption--line-height: 1.4;
+  --text-micro: 0.75rem;
+  --text-micro--line-height: 1.3;
+
+  /* Spacing Scale */
+  --spacing-space-1: 4px;
+  --spacing-space-2: 8px;
+  --spacing-space-3: 12px;
+  --spacing-space-4: 16px;
+  --spacing-space-5: 24px;
+  --spacing-space-6: 32px;
+  --spacing-space-7: 48px;
+  --spacing-space-8: 64px;
+  --spacing-space-9: 96px;
+
+  /* Border Radius */
+  --radius-radius-sm: 8px;
+  --radius-radius-md: 16px;
+  --radius-radius-lg: 24px;
+
+  /* Shadow */
+  --shadow-shadow-sm: 0 1px 2px rgba(27,38,36,0.06);
+  --shadow-shadow-md: 0 4px 16px rgba(27,38,36,0.10);
+  --shadow-shadow-lg: 0 12px 32px rgba(27,38,36,0.16);
+}
+
+@layer base {
+  :root {
+    --bg-main: var(--color-mist-50);
+    --bg-surface: #FFFFFF;
+    --text-primary: var(--color-ink-900);
+    --text-secondary: var(--color-ink-500);
+    --border-main: var(--color-line-200);
+    --accent-primary: var(--color-ocean-600);
+    --accent-hover: var(--color-ocean-900);
+    --accent-warning: var(--color-lantern-500);
+    --accent-cta: var(--color-coral-500);
+  }
+  
+  .dark {
+    --bg-main: var(--color-ocean-900-dark);
+    --bg-surface: var(--color-ocean-surface-dark);
+    --text-primary: var(--color-ink-50-dark);
+    --text-secondary: var(--color-ink-400-dark);
+    --border-main: var(--color-line-dark);
+    --accent-warning: var(--color-lantern-500-dark);
+    --accent-cta: var(--color-coral-500-dark);
+  }
+
+  body {
+    @apply antialiased text-[var(--text-primary)] bg-[var(--bg-main)];
+    font-family: var(--font-body);
+  }
+  
+  h1, h2, h3, h4, h5, h6 {
+    font-family: var(--font-display);
+  }
+}
+
+@layer utilities {
+  .transition-custom {
+    @apply transition-all duration-300 ease-in-out;
+  }
+}
