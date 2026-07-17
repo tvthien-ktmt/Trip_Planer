@@ -112,7 +112,11 @@ export interface User {
   name: string;
   avatar?: string;
   phone?: string;
-  role: 'User' | 'Admin';
+  dob?: string;
+  status?: string;
+  createdAt?: string;
+  membershipTier?: string;
+  role: 'User' | 'Admin' | 'Staff';
 }
 
 export interface BlogPost {

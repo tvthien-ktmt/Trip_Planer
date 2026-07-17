@@ -61,7 +61,7 @@ export default function Payment() {
         
         <div className="flex justify-between">
           <button 
-            onClick={() => navigate.push('/booking/add-ons')}
+            onClick={() => navigate.push('/booking/addons')}
             className="px-8 py-3 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-xl font-bold"
           >
             Quay lại

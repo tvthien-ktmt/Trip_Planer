@@ -13,10 +13,12 @@ const geistMono = Geist_Mono({
 });
 
 import QueryProvider from "../providers/QueryProvider";
+import { Toaster } from "sonner";
+import { LoginModal } from "../components/auth/LoginModal";
 
 export const metadata: Metadata = {
-  title: "Trip Planer OTA",
-  description: "Your best trip planer",
+  title: "TripPlaner OTA — Đặt vé máy bay & Tour du lịch",
+  description: "Nền tảng đặt vé máy bay và tour du lịch trực tuyến hàng đầu Việt Nam. Giá tốt nhất, dịch vụ 24/7, an toàn và bảo mật.",
 };
 
 export default function RootLayout({
@@ -26,13 +28,15 @@ export default function RootLayout({
 }>) {
   return (
     <html
-      lang="en"
+      lang="vi"
       className={`${geistSans.variable} ${geistMono.variable} h-full antialiased`}
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col" suppressHydrationWarning>
         <QueryProvider>
           {children}
+          <LoginModal />
+          <Toaster richColors position="top-right" />
         </QueryProvider>
       </body>
     </html>

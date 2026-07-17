@@ -4,8 +4,8 @@ services:
     image: mysql:8.0
     container_name: trip_planer_mysql
     environment:
-      MYSQL_ROOT_PASSWORD: root
-      MYSQL_DATABASE: trip_planer
+      MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD:-root}
+      MYSQL_DATABASE: ${MYSQL_DATABASE:-trip_planer}
     ports:
       - "3306:3306"
     volumes:

@@ -41,6 +41,11 @@ export const useBookingFlowStore = create<BookingFlowState>()(
     }),
     {
       name: 'booking-flow-storage',
+      // FE-007 fix: Exclude passengerInfo from localStorage (PII protection)
+      partialize: (state) => {
+        const { passengerInfo, ...rest } = state;
+        return rest;
+      },
     }
   )
 );

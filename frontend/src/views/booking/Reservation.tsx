@@ -22,7 +22,7 @@ const contactSchema = z.object({
 type ContactForm = z.infer<typeof contactSchema>;
 
 export default function Reservation() {
-  const [bookingCode] = useState(() => Math.floor(10000 + Math.random() * 90000));
+  const [bookingCode] = useState(() => crypto.randomUUID().substring(0, 8).toUpperCase());
   const { items, getTotal, removeItem, clearCart } = useBookingCartStore();
   const { user } = useAuthStore();
   const navigate = useRouter();
@@ -198,7 +198,7 @@ export default function Reservation() {
         </div>
       </div>
 
-      <Modal isOpen={isSuccessModalOpen} onClose={() => {}}>
+      <Modal isOpen={isSuccessModalOpen} onClose={() => navigate.push('/')}>
         <div className="text-center py-4">
           <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4">
             <CheckCircle2 className="w-8 h-8" />

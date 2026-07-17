@@ -234,19 +234,19 @@ export class AnalyticsService {
       orderBy: { minPoints: 'asc' },
     });
 
-    const tierStats = await Promise.all(
-      tiers.map(async (tier) => {
-        const count = await this.prisma.userPoints.count({
-          where: { tierId: tier.id },
-        });
-        return {
-          tierId: tier.id.toString(),
-          tierName: tier.name,
-          minPoints: tier.minPoints,
-          userCount: count,
-        };
-      }),
-    );
+    // BE-039 fix: Use groupBy to avoid N+1 queries
+    const pointsByTier = await this.prisma.userPoints.groupBy({
+      by: ['tierId'],
+      _count: true,
+    });
+    const countsMap = new Map(pointsByTier.map(t => [t.tierId ? t.tierId.toString() : 'null', t._count]));
+
+    const tierStats = tiers.map((tier) => ({
+      tierId: tier.id.toString(),
+      tierName: tier.name,
+      minPoints: tier.minPoints,
+      userCount: countsMap.get(tier.id.toString()) || 0,
+    }));
 
     const totalWithPoints = await this.prisma.userPoints.count({
       where: { pointsBalance: { gt: 0 } },

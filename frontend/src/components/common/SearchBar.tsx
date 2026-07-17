@@ -2,6 +2,7 @@
 import { useState } from "react";
 import { useSearchStore, useSearchFlightStore } from "../../stores";
 import { MapPin, Calendar, Users, Search } from "lucide-react";
+import { toast } from "sonner";
 import { useRouter } from 'next/navigation';
 import { AirportAutocomplete } from "../form/AirportAutocomplete";
 import { DatePickerRange } from "../form/DatePickerRange";
@@ -17,7 +18,7 @@ export const SearchBar = () => {
   const handleSearch = () => {
     if (activeTab === "flights") {
       if (!searchFlightStore.departure || !searchFlightStore.destination) {
-        alert("Vui lòng chọn điểm đi và điểm đến");
+        toast.error("Vui lòng chọn điểm đi và điểm đến");
         return;
       }
       navigate.push("/flights/results");

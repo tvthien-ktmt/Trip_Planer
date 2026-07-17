@@ -211,7 +211,7 @@ export const mockTours: Tour[] = [
     title: `Tour Trải Nghiệm ${['Đà Nẵng', 'Tokyo', 'Phú Quốc', 'Seoul', 'Đà Lạt', 'Nha Trang'][i % 6]} cao cấp`,
     destinationId: `dest-${(i % 16) + 1}`,
     location: 'Khu vực trung tâm',
-    images: tourImages[i],
+    images: tourImages[i] || [],
     price: 2000000 + (i * 500000),
     oldPrice: i % 3 === 0 ? 3000000 + (i * 500000) : undefined,
     durationDays: (i % 4) + 2,

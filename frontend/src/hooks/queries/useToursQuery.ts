@@ -1,15 +1,17 @@
 import { useQuery } from '@tanstack/react-query';
-import { mockTours } from '../../mocks/data';
+import { api } from '../../lib/api';
 
 const fetchTours = async () => {
-  return new Promise<typeof mockTours>((resolve) => {
-    setTimeout(() => resolve(mockTours), 600);
-  });
+  const { data } = await api.get('/tours');
+  return data.data || data; // Assuming the API returns { data: [...] } or just the array
 };
 
-export const useToursQuery = () => {
+export const useToursQuery = (filters?: any) => {
   return useQuery({
-    queryKey: ['tours'],
-    queryFn: fetchTours,
+    queryKey: ['tours', filters],
+    queryFn: async (): Promise<any[]> => {
+      const { data } = await api.get('/tours', { params: filters });
+      return data.data || data;
+    },
   });
 };

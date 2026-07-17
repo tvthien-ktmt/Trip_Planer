@@ -16,7 +16,7 @@ import {
 import { AuthService } from './auth.service';
 import { SessionService } from './session.service';
 import { ActivityLogService } from '../../common/services/activity-log.service';
-import { RegisterDto, LoginDto } from './dto/auth.dto';
+import { RegisterWithOtpDto, LoginDto, SendOtpDto, ResetPasswordDto, RefreshTokenDto } from './dto/auth.dto';
 import {
   ApiTags,
   ApiOperation,
@@ -47,11 +47,8 @@ export class AuthController {
     description: 'OTP sent to email (dev: logged to console)',
   })
   @ApiResponse({ status: 400, description: 'Email already exists / not found' })
-  async sendOtp(
-    @Body('email') email: string,
-    @Body('purpose') purpose: 'REGISTER' | 'RESET_PASSWORD' = 'REGISTER',
-  ) {
-    return this.authService.generateOtp(email, purpose);
+  async sendOtp(@Body() dto: SendOtpDto) {
+    return this.authService.generateOtp(dto.email, dto.purpose);
   }
 
   @Post('register')
@@ -61,7 +58,7 @@ export class AuthController {
     status: 400,
     description: 'Invalid OTP or email already taken',
   })
-  async register(@Body() dto: RegisterDto & { otp: string }) {
+  async register(@Body() dto: RegisterWithOtpDto) {
     return this.authService.register(dto);
   }
 
@@ -102,8 +99,8 @@ export class AuthController {
   })
   @ApiResponse({ status: 200, description: 'New access + refresh token pair' })
   @ApiResponse({ status: 401, description: 'Invalid or reused refresh token' })
-  async refresh(@Body('refresh_token') token: string) {
-    return this.authService.refreshToken(token);
+  async refresh(@Body() dto: RefreshTokenDto) {
+    return this.authService.refreshToken(dto.refresh_token);
   }
 
   @Post('logout')
@@ -118,6 +115,10 @@ export class AuthController {
     @Headers('authorization') authHeader: string,
     @Body('session_token') sessionToken?: string,
   ) {
+    // BE-048 fix: Null check authHeader before split
+    if (!authHeader || !authHeader.startsWith('Bearer ')) {
+      return { success: false, message: 'Invalid authorization header' };
+    }
     const token = authHeader.split(' ')[1];
     return this.authService.logout(user.id, token, sessionToken);
   }
@@ -150,12 +151,7 @@ export class AuthController {
     @CurrentUser() user: any,
     @Headers('x-session-token') currentSessionToken?: string,
   ) {
-    const sessions = await this.sessionService.getUserSessions(user.id);
-    // Mark current session
-    return sessions.map((s) => ({
-      ...s,
-      isCurrent: false, // Would compare with currentSessionToken in production
-    }));
+    return this.sessionService.getUserSessions(user.id, currentSessionToken);
   }
 
   @Delete('sessions/:id')
@@ -163,7 +159,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout specific device (revoke one session)' })
   async revokeSession(
-    @Param('id', ParseIntPipe) id: number,
+    @Param('id') id: string,
     @CurrentUser() user: any,
   ) {
     await this.sessionService.revokeSession(BigInt(id), user.id);
@@ -208,4 +204,28 @@ export class AuthController {
       limit: Number(limit) || 20,
     });
   }
+
+  // BE-050: Admin unlock endpoint
+  @Post('admin/unlock/:userId')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Admin: unlock a locked user account' })
+  async unlockAccount(
+    @Param('userId') userId: string,
+    @CurrentUser() user: any,
+  ) {
+    if (user.role !== 'ADMIN') {
+      throw new Error('Forbidden');
+    }
+    return this.authService.unlockAccount(BigInt(userId));
+  }
+
+  // Reset password endpoint
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Reset password using OTP' })
+  async resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.authService.resetPassword(dto.email, dto.otp, dto.newPassword);
+  }
 }
+

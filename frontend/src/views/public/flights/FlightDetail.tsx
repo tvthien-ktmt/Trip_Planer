@@ -12,7 +12,7 @@ export default function FlightDetail() {
   
   // For demo, we just fetch all and find the one. In real app, we use a specific query useFlightDetailQuery
   const { data: flights = [] } = useSearchFlightsQuery({});
-  const flight = flights.find(f => f.id === id);
+  const flight = flights.find((f: any) => String(f.id) === String(id));
 
   if (!flight) {
     return <div className="p-12 text-center text-[var(--text-primary)]">Đang tải hoặc không tìm thấy chuyến bay...</div>;
@@ -65,7 +65,7 @@ export default function FlightDetail() {
           <div className="p-6">
             {activeTab === 'details' && (
               <div className="animate-in fade-in">
-                {flight.legs.map((leg, idx) => (
+                {flight.legs?.map((leg: any, idx: number) => (
                   <div key={leg.id} className="flex gap-4 mb-6 relative">
                     {idx !== flight.legs.length - 1 && (
                       <div className="absolute left-6 top-12 bottom-[-24px] w-px bg-dashed border-l-2 border-dashed border-[var(--border-main)]"></div>
@@ -187,7 +187,7 @@ export default function FlightDetail() {
 
         <h2 className="text-xl font-bold mb-4 text-[var(--text-primary)]">Chọn hạng vé</h2>
         <div className="space-y-4">
-          {flight.pricing.map(price => (
+          {flight.pricing?.map((price: any) => (
             <div key={price.class} className="bg-[var(--bg-surface)] p-6 rounded-xl border border-[var(--border-main)] shadow-sm hover:border-[var(--color-ocean-600)] transition-colors flex flex-col md:flex-row gap-6 items-center">
               <div className="flex-1 w-full">
                 <h3 className="font-bold text-lg text-[var(--text-primary)] mb-4 uppercase">{price.class}</h3>

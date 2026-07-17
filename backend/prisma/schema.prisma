@@ -12,36 +12,47 @@ datasource db {
 
 // ===== AUTH & USER =====
 model User {
-  id            BigInt   @id @default(autoincrement())
-  email         String   @unique
-  passwordHash  String
-  fullName      String
-  phone         String?
-  avatarUrl     String?
-  dateOfBirth   DateTime?
-  nationalId    String?
-  passportNo    String?
-  role          Role     @default(USER)
-  status        UserStatus @default(PENDING_VERIFICATION)
+  id              BigInt     @id @default(autoincrement())
+  email           String     @unique
+  passwordHash    String
+  fullName        String
+  phone           String?
+  avatarUrl       String?
+  dateOfBirth     DateTime?
+  nationalId      String?
+  passportNo      String?
+  role            Role       @default(USER)
+  status          UserStatus @default(PENDING_VERIFICATION)
   emailVerifiedAt DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  deletedAt     DateTime?
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+  deletedAt       DateTime?
 
-  refreshTokens   RefreshToken[]
-  loginHistories  LoginHistory[]
-  devices         UserDevice[]
-  sessions        UserSession[]
-  bookings        Booking[]
-  wishlists       Wishlist[]
-  reviews         Review[]
-  activityLogs    ActivityLog[]
+  refreshTokens  RefreshToken[]
+  loginHistories LoginHistory[]
+  devices        UserDevice[]
+  sessions       UserSession[]
+  bookings       Booking[]
+  wishlists      Wishlist[]
+  reviews        Review[]
+  activityLogs   ActivityLog[]
+
+  changedStatusHistories BookingStatusHistory[] @relation("ChangedStatusHistories")
+  processedRefunds       Refund[]               @relation("ProcessedRefunds")
+  voucherRedemptions     VoucherRedemption[]
+  pointTransactions      PointTransaction[]
+  authoredPosts          BlogPost[]
+  uploadedMedia          MediaFile[]
+  notifications          Notification[]
+  auditLogs              AuditLog[]
 }
+
 enum Role {
   USER
   STAFF
   ADMIN
 }
+
 enum UserStatus {
   ACTIVE
   LOCKED
@@ -50,10 +61,10 @@ enum UserStatus {
 
 // ===== RBAC =====
 model Permission {
-  id          BigInt   @id @default(autoincrement())
-  code        String   @unique // e.g. "BOOKING_READ", "USER_DELETE"
+  id          BigInt  @id @default(autoincrement())
+  code        String  @unique // e.g. "BOOKING_READ", "USER_DELETE"
   description String?
-  module      String?  // e.g. "BOOKING", "PAYMENT", "USER", "BLOG"
+  module      String? // e.g. "BOOKING", "PAYMENT", "USER", "BLOG"
 
   rolePermissions RolePermission[]
 }
@@ -68,23 +79,34 @@ model RolePermission {
 }
 
 model RefreshToken {
-  id          BigInt   @id @default(autoincrement())
-  userId      BigInt
-  user        User     @relation(fields: [userId], references: [id])
-  tokenHash   String
-  expiresAt   DateTime
-  revokedAt   DateTime?
-  deviceInfo  String?
+  id         BigInt    @id @default(autoincrement())
+  userId     BigInt
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash  String
+  tokenHint  String? // SHA-256 of raw token (first 16 hex chars) for O(1) lookup
+  expiresAt  DateTime
+  revokedAt  DateTime?
+  deviceInfo String?
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+  @@index([tokenHint])
 }
 
 model OtpCode {
-  id          BigInt   @id @default(autoincrement())
-  userId      BigInt
-  codeHash    String
-  purpose     OtpPurpose
-  expiresAt   DateTime
-  consumedAt  DateTime?
+  id         BigInt     @id @default(autoincrement())
+  userId     BigInt     @default(0) // 0 for pre-registration OTPs
+  email      String? // Store email for pre-registration OTP lookup (DB-005 fix)
+  codeHash   String
+  purpose    OtpPurpose
+  expiresAt  DateTime
+  consumedAt DateTime?
+  attempts   Int        @default(0) // For brute-force protection (BE-023)
+
+  @@index([email, purpose, consumedAt, expiresAt])
+  @@index([userId, purpose, consumedAt, expiresAt])
 }
+
 enum OtpPurpose {
   REGISTER
   RESET_PASSWORD
@@ -94,33 +116,37 @@ enum OtpPurpose {
 model LoginHistory {
   id        BigInt   @id @default(autoincrement())
   userId    BigInt
-  user      User     @relation(fields: [userId], references: [id])
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   ipAddress String
   device    String?
   location  String?
   loginAt   DateTime @default(now())
   success   Boolean
+
+  @@index([userId, success, loginAt]) // DB-009: needed for lock-after-5-failures query
 }
 
 model UserDevice {
   id                BigInt   @id @default(autoincrement())
   userId            BigInt
-  user              User     @relation(fields: [userId], references: [id])
+  user              User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   deviceFingerprint String
   deviceName        String?
   lastActiveAt      DateTime
   isTrusted         Boolean  @default(false)
+
+  @@unique([userId, deviceFingerprint]) // DB-009: prevent duplicate device records
 }
 
 model UserSession {
   id           BigInt   @id @default(autoincrement())
   userId       BigInt
-  user         User     @relation(fields: [userId], references: [id])
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   sessionToken String   @unique
   deviceName   String?
-  deviceType   String?  // e.g. "Chrome", "Safari", "Mobile"
+  deviceType   String? // e.g. "Chrome", "Safari", "Mobile"
   ipAddress    String?
-  location     String?  // e.g. "Ho Chi Minh City"
+  location     String? // e.g. "Ho Chi Minh City"
   userAgent    String?
   isActive     Boolean  @default(true)
   lastActiveAt DateTime @default(now())
@@ -139,32 +165,43 @@ model Airport {
   city     String
   country  String
   timezone String
+
+  // DB-001: reverse relations for FK
+  departingFlights Flight[] @relation("DepartureFlights")
+  arrivingFlights  Flight[] @relation("ArrivalFlights")
 }
 
 model Aircraft {
-  id           BigInt @id @default(autoincrement())
-  model        String
-  manufacturer String
-  totalSeats   Int
+  id            BigInt @id @default(autoincrement())
+  model         String
+  manufacturer  String
+  totalSeats    Int
   seatMapConfig Json
+
+  // DB-001: reverse relation for FK
+  flights Flight[]
 }
 
 model Flight {
-  id                  BigInt   @id @default(autoincrement())
-  flightNumber        String
-  airlineName         String
-  aircraftId          BigInt
-  departureAirportId  BigInt
-  arrivalAirportId    BigInt
-  departureTime       DateTime
-  arrivalTime         DateTime
-  status              FlightStatus @default(SCHEDULED)
+  id                 BigInt       @id @default(autoincrement())
+  flightNumber       String
+  airlineName        String
+  aircraftId         BigInt
+  aircraft           Aircraft     @relation(fields: [aircraftId], references: [id]) // DB-001 FK fix
+  departureAirportId BigInt
+  departureAirport   Airport      @relation("DepartureFlights", fields: [departureAirportId], references: [id]) // DB-001
+  arrivalAirportId   BigInt
+  arrivalAirport     Airport      @relation("ArrivalFlights", fields: [arrivalAirportId], references: [id]) // DB-001
+  departureTime      DateTime
+  arrivalTime        DateTime
+  status             FlightStatus @default(SCHEDULED)
 
   fareClasses FlightFareClass[]
   seats       FlightSeat[]
 
   @@index([departureAirportId, arrivalAirportId, departureTime]) // composite index
 }
+
 enum FlightStatus {
   SCHEDULED
   DELAYED
@@ -173,14 +210,21 @@ enum FlightStatus {
 }
 
 model FlightFareClass {
-  id                BigInt  @id @default(autoincrement())
-  flightId          BigInt
-  flight            Flight  @relation(fields: [flightId], references: [id])
-  className         FareClass
-  basePrice         Decimal
-  availableSeats    Int
+  id                 BigInt    @id @default(autoincrement())
+  flightId           BigInt
+  flight             Flight    @relation(fields: [flightId], references: [id])
+  className          FareClass
+  basePrice          Decimal   @db.Decimal(18, 2) // DB-025: fix oversize Decimal
+  availableSeats     Int
   baggageAllowanceKg Int
+
+  seats            FlightSeat[]
+  BookingPassenger BookingPassenger[]
+
+  @@unique([flightId, className]) // DB-015: prevent duplicate fare class for same flight
+  @@index([flightId])
 }
+
 enum FareClass {
   ECONOMY
   PREMIUM_ECONOMY
@@ -188,15 +232,22 @@ enum FareClass {
 }
 
 model FlightSeat {
-  id          BigInt   @id @default(autoincrement())
+  id          BigInt          @id @default(autoincrement())
   flightId    BigInt
-  flight      Flight   @relation(fields: [flightId], references: [id])
+  flight      Flight          @relation(fields: [flightId], references: [id])
   seatCode    String
   fareClassId BigInt
-  status      SeatStatus @default(AVAILABLE)
-  extraFee    Decimal  @default(0)
-  version     Int      @default(0) // optimistic locking
+  fareClass   FlightFareClass @relation(fields: [fareClassId], references: [id]) // DB-008 FK fix
+  status      SeatStatus      @default(AVAILABLE)
+  extraFee    Decimal         @default(0) @db.Decimal(18, 2) // DB-025
+  version     Int             @default(0) // optimistic locking
+
+  passengers BookingPassenger[]
+
+  @@index([flightId, status]) // DB-014: needed for seat availability query
+  @@index([fareClassId])
 }
+
 enum SeatStatus {
   AVAILABLE
   LOCKED
@@ -205,39 +256,49 @@ enum SeatStatus {
 
 // ===== TOUR =====
 model Destination {
-  id          BigInt   @id @default(autoincrement())
-  name        String
-  region      String?
-  country     String
-  type        DestinationType
-  tags        Json     
-  description String?  @db.Text
+  id            BigInt          @id @default(autoincrement())
+  name          String
+  region        String?
+  country       String
+  type          DestinationType
+  tags          Json
+  description   String?         @db.Text
   coverImageUrl String?
+
+  // DB-002: reverse relation for Tour FK
+  tours Tour[]
 }
+
 enum DestinationType {
   VIETNAM
   INTERNATIONAL
 }
 
 model Tour {
-  id              BigInt   @id @default(autoincrement())
+  id              BigInt      @id @default(autoincrement())
   title           String
   destinationId   BigInt
-  description     String?  @db.Text
+  destination     Destination @relation(fields: [destinationId], references: [id]) // DB-002 FK fix
+  description     String?     @db.Text
   durationDays    Int
-  basePrice       Decimal
-  discountPercent Int      @default(0)
-  ratingAvg       Decimal  @default(0)
-  reviewCount     Int      @default(0)
+  basePrice       Decimal     @db.Decimal(18, 2) // DB-025
+  discountPercent Int         @default(0)
+  ratingAvg       Decimal     @default(0) @db.Decimal(3, 1) // DB-025: 3,1 for rating avg
+  reviewCount     Int         @default(0)
 
   itineraries TourItinerary[]
   images      TourImage[]
+
+  @@index([destinationId]) // DB-016
+  @@index([ratingAvg])
+  @@index([basePrice])
+  @@index([discountPercent])
 }
 
 model TourItinerary {
-  id          BigInt @id @default(autoincrement())
+  id          BigInt  @id @default(autoincrement())
   tourId      BigInt
-  tour        Tour   @relation(fields: [tourId], references: [id])
+  tour        Tour    @relation(fields: [tourId], references: [id])
   dayNumber   Int
   title       String
   description String? @db.Text
@@ -253,31 +314,35 @@ model TourImage {
 
 // ===== BOOKING =====
 model Booking {
-  id            BigInt   @id @default(autoincrement())
-  bookingCode   String   @unique
-  userId        BigInt
-  user          User     @relation(fields: [userId], references: [id])
-  type          BookingType
-  status        BookingStatus @default(DRAFT)
-  totalAmount   Decimal  @default(0)
-  currency      String   @default("VND")
-  expiresAt     DateTime?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id          BigInt        @id @default(autoincrement())
+  bookingCode String        @unique
+  userId      BigInt
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type        BookingType
+  status      BookingStatus @default(DRAFT)
+  totalAmount Decimal       @default(0) @db.Decimal(18, 2)
+  currency    String        @default("VND")
+  expiresAt   DateTime?
+  createdAt   DateTime      @default(now())
+  updatedAt   DateTime      @updatedAt
 
-  passengers    BookingPassenger[]
-  items         BookingItem[]
-  statusHistory BookingStatusHistory[]
-  payment       Payment?
+  passengers        BookingPassenger[]
+  items             BookingItem[]
+  statusHistory     BookingStatusHistory[]
+  payment           Payment?
+  VoucherRedemption VoucherRedemption[]
+  PointTransaction  PointTransaction[]
 
   @@index([userId])
   @@index([status])
   @@index([createdAt])
 }
+
 enum BookingType {
   FLIGHT
   TOUR
 }
+
 enum BookingStatus {
   DRAFT
   PENDING_PAYMENT
@@ -287,27 +352,30 @@ enum BookingStatus {
 }
 
 model BookingPassenger {
-  id           BigInt   @id @default(autoincrement())
-  bookingId    BigInt
-  booking      Booking  @relation(fields: [bookingId], references: [id])
-  fullName     String
-  dateOfBirth  DateTime?
-  nationality  String?
-  passportNo   String?
-  seatId       BigInt?
-  fareClassId  BigInt?
+  id          BigInt           @id @default(autoincrement())
+  bookingId   BigInt
+  booking     Booking          @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  fullName    String
+  dateOfBirth DateTime?
+  nationality String?
+  passportNo  String?
+  seatId      BigInt?
+  seat        FlightSeat?      @relation(fields: [seatId], references: [id]) // DB-008 FK fix
+  fareClassId BigInt?
+  fareClass   FlightFareClass? @relation(fields: [fareClassId], references: [id])
 }
 
 model BookingItem {
-  id         BigInt   @id @default(autoincrement())
-  bookingId  BigInt
-  booking    Booking  @relation(fields: [bookingId], references: [id])
-  itemType   BookingItemType
-  itemRefId  BigInt?
-  quantity   Int      @default(1)
-  unitPrice  Decimal
-  subtotal   Decimal
+  id        BigInt          @id @default(autoincrement())
+  bookingId BigInt
+  booking   Booking         @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  itemType  BookingItemType
+  itemRefId BigInt? // polymorphic — no FK possible
+  quantity  Int             @default(1)
+  unitPrice Decimal         @db.Decimal(18, 2) // DB-025
+  subtotal  Decimal         @db.Decimal(18, 2) // DB-025
 }
+
 enum BookingItemType {
   BAGGAGE
   MEAL
@@ -316,37 +384,45 @@ enum BookingItemType {
 }
 
 model BookingStatusHistory {
-  id         BigInt   @id @default(autoincrement())
-  bookingId  BigInt
-  booking    Booking  @relation(fields: [bookingId], references: [id])
-  fromStatus String?
-  toStatus   String
-  changedBy  BigInt?
-  changedAt  DateTime @default(now())
-  reason     String?
+  id            BigInt   @id @default(autoincrement())
+  bookingId     BigInt
+  booking       Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  fromStatus    String?
+  toStatus      String
+  changedBy     BigInt?
+  changedByUser User?    @relation("ChangedStatusHistories", fields: [changedBy], references: [id])
+  changedAt     DateTime @default(now())
+  reason        String?
+
+  @@index([bookingId, changedAt]) // DB-023
 }
 
 // ===== PAYMENT =====
 model Payment {
-  id              BigInt   @id @default(autoincrement())
-  bookingId       BigInt   @unique
-  booking         Booking  @relation(fields: [bookingId], references: [id])
-  method          PaymentMethod
-  amount          Decimal
-  status          PaymentStatus @default(PENDING)
-  transactionRef  String?
-  idempotencyKey  String   @unique
-  createdAt       DateTime @default(now())
-  updatedAt       DateTime @updatedAt
+  id             BigInt        @id @default(autoincrement())
+  bookingId      BigInt        @unique
+  booking        Booking       @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  method         PaymentMethod
+  amount         Decimal       @db.Decimal(18, 2) // DB-025
+  status         PaymentStatus @default(PENDING)
+  transactionRef String?
+  idempotencyKey String        @unique
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  refunds Refund[]
 
   @@index([createdAt])
+  @@index([status, createdAt]) // DB-017: for analytics queries
 }
+
 enum PaymentMethod {
   CREDIT_CARD
   BANK_TRANSFER
   VNPAY
   MOMO
 }
+
 enum PaymentStatus {
   PENDING
   SUCCESS
@@ -355,14 +431,21 @@ enum PaymentStatus {
 }
 
 model Refund {
-  id           BigInt   @id @default(autoincrement())
-  paymentId    BigInt
-  amount       Decimal
-  reason       String?
-  status       RefundStatus @default(REQUESTED)
-  processedBy  BigInt?
-  processedAt  DateTime?
+  id              BigInt       @id @default(autoincrement())
+  paymentId       BigInt
+  payment         Payment      @relation(fields: [paymentId], references: [id]) // DB-008 FK fix
+  amount          Decimal      @db.Decimal(18, 2) // DB-025
+  reason          String?
+  status          RefundStatus @default(REQUESTED)
+  processedBy     BigInt? // optional FK to User.id
+  processedByUser User?        @relation("ProcessedRefunds", fields: [processedBy], references: [id])
+  processedAt     DateTime?
+  createdAt       DateTime     @default(now())
+
+  @@index([paymentId]) // DB-019
+  @@index([status, createdAt])
 }
+
 enum RefundStatus {
   REQUESTED
   PROCESSING
@@ -371,17 +454,19 @@ enum RefundStatus {
 }
 
 model Voucher {
-  id               BigInt   @id @default(autoincrement())
-  code             String   @unique
-  discountType     DiscountType
-  discountValue    Decimal
-  minOrderAmount   Decimal  @default(0)
-  maxDiscountAmount Decimal?
-  validFrom        DateTime
-  validTo          DateTime
-  usageLimit       Int?
-  usedCount        Int      @default(0)
+  id                BigInt              @id @default(autoincrement())
+  code              String              @unique
+  discountType      DiscountType
+  discountValue     Decimal             @db.Decimal(18, 2) // DB-025
+  minOrderAmount    Decimal             @default(0) @db.Decimal(18, 2) // DB-025
+  maxDiscountAmount Decimal?            @db.Decimal(18, 2) // DB-025
+  validFrom         DateTime
+  validTo           DateTime
+  usageLimit        Int?
+  usedCount         Int                 @default(0)
+  VoucherRedemption VoucherRedemption[]
 }
+
 enum DiscountType {
   PERCENT
   FIXED
@@ -390,44 +475,57 @@ enum DiscountType {
 model VoucherRedemption {
   id         BigInt   @id @default(autoincrement())
   voucherId  BigInt
+  voucher    Voucher  @relation(fields: [voucherId], references: [id])
   userId     BigInt
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   bookingId  BigInt
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
   redeemedAt DateTime @default(now())
 
-  @@unique([voucherId, bookingId]) 
+  @@unique([voucherId, bookingId]) // prevent applying same voucher to same booking twice
+  @@unique([voucherId, userId]) // DB-004 fix: prevent user from using same voucher multiple times
+  @@index([userId]) // DB-018
+  @@index([voucherId]) // DB-018
 }
 
 // ===== REVIEW & WISHLIST =====
 model Review {
-  id              BigInt   @id @default(autoincrement())
-  userId          BigInt
-  user            User     @relation(fields: [userId], references: [id])
-  reviewableType  ReviewableType
-  reviewableId    BigInt
-  rating          Int
-  comment         String?  @db.Text
-  images          Json?
-  helpfulCount    Int      @default(0)
-  status          ReviewStatus @default(PUBLISHED)
+  id             BigInt         @id @default(autoincrement())
+  userId         BigInt
+  user           User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  reviewableType ReviewableType
+  reviewableId   BigInt
+  rating         Int
+  comment        String?        @db.Text
+  images         Json?
+  helpfulCount   Int            @default(0)
+  status         ReviewStatus   @default(PUBLISHED)
+  createdAt      DateTime       @default(now())
+
+  @@index([reviewableType, reviewableId, status]) // DB-024
+  @@index([userId, reviewableType, reviewableId])
 }
+
 enum ReviewableType {
   TOUR
   FLIGHT
 }
+
 enum ReviewStatus {
   PUBLISHED
   HIDDEN
 }
 
 model Wishlist {
-  id       BigInt   @id @default(autoincrement())
+  id       BigInt           @id @default(autoincrement())
   userId   BigInt
-  user     User     @relation(fields: [userId], references: [id])
+  user     User             @relation(fields: [userId], references: [id], onDelete: Cascade)
   itemType WishlistItemType
   itemId   BigInt
 
   @@unique([userId, itemType, itemId])
 }
+
 enum WishlistItemType {
   TOUR
   DESTINATION
@@ -436,47 +534,62 @@ enum WishlistItemType {
 
 // ===== MEMBERSHIP =====
 model MembershipTier {
-  id        BigInt @id @default(autoincrement())
-  name      String
-  minPoints Int
-  benefits  Json
+  id         BigInt       @id @default(autoincrement())
+  name       String
+  minPoints  Int
+  benefits   Json
+  UserPoints UserPoints[]
 }
 
 model UserPoints {
-  id            BigInt @id @default(autoincrement())
-  userId        BigInt @unique
-  pointsBalance Int    @default(0)
+  id            BigInt          @id @default(autoincrement())
+  userId        BigInt          @unique
+  pointsBalance Int             @default(0)
   tierId        BigInt?
+  tier          MembershipTier? @relation(fields: [tierId], references: [id])
 }
 
 model PointTransaction {
-  id            BigInt   @id @default(autoincrement())
-  userId        BigInt
-  bookingId     BigInt?
-  pointsChange  Int
-  reason        String?
-  createdAt     DateTime @default(now())
+  id           BigInt   @id @default(autoincrement())
+  userId       BigInt
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  bookingId    BigInt?
+  booking      Booking? @relation(fields: [bookingId], references: [id])
+  pointsChange Int
+  reason       String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId, createdAt]) // DB-022
+  @@index([bookingId])
 }
 
 // ===== BLOG / MEDIA / STATIC =====
 model BlogPost {
-  id              BigInt     @id @default(autoincrement())
+  id              BigInt        @id @default(autoincrement())
   title           String
-  slug            String     @unique
-  content         String     @db.LongText
+  slug            String        @unique
+  content         String        @db.LongText
   coverImageUrl   String?
   categoryId      BigInt?
+  category        BlogCategory? @relation(fields: [categoryId], references: [id]) // DB-008 FK fix
   authorId        BigInt
-  status          BlogStatus @default(DRAFT)
+  author          User          @relation(fields: [authorId], references: [id])
+  status          BlogStatus    @default(DRAFT)
   publishedAt     DateTime?
-  scheduledAt     DateTime?  // For scheduled publishing
-  metaTitle       String?    // SEO
-  metaDescription String?    @db.Text // SEO
-  viewCount       Int        @default(0)
+  scheduledAt     DateTime? // For scheduled publishing
+  metaTitle       String? // SEO
+  metaDescription String?       @db.Text // SEO
+  viewCount       Int           @default(0)
   tags            BlogPostTag[]
-  createdAt       DateTime   @default(now())
-  updatedAt       DateTime   @updatedAt
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([status, publishedAt]) // DB-020
+  @@index([categoryId])
+  @@index([authorId])
+  @@index([publishedAt])
 }
+
 enum BlogStatus {
   DRAFT
   PUBLISHED
@@ -484,9 +597,9 @@ enum BlogStatus {
 }
 
 model BlogTag {
-  id    BigInt       @id @default(autoincrement())
-  name  String       @unique
-  slug  String       @unique
+  id    BigInt        @id @default(autoincrement())
+  name  String        @unique
+  slug  String        @unique
   posts BlogPostTag[]
 }
 
@@ -500,39 +613,47 @@ model BlogPostTag {
 }
 
 model BlogCategory {
-  id   BigInt @id @default(autoincrement())
-  name String
-  slug String @unique
+  id    BigInt     @id @default(autoincrement())
+  name  String
+  slug  String     @unique
+  posts BlogPost[] // DB-008: reverse relation for BlogPost.categoryId FK
 }
 
 model MediaFile {
-  id         BigInt   @id @default(autoincrement())
+  id         BigInt  @id @default(autoincrement())
   fileName   String
   fileUrl    String
   fileType   String
   fileSize   Int
   folderPath String?
   uploadedBy BigInt
+  uploader   User    @relation(fields: [uploadedBy], references: [id])
+
+  @@index([uploadedBy, id]) // DB-021
 }
 
 model Faq {
-  id           BigInt @id @default(autoincrement())
+  id           BigInt  @id @default(autoincrement())
   question     String
-  answer       String @db.Text
+  answer       String  @db.Text
   category     String?
-  displayOrder Int    @default(0)
+  displayOrder Int     @default(0)
 }
 
 // ===== NOTIFICATION & CONTACT =====
 model Notification {
-  id        BigInt   @id @default(autoincrement())
+  id        BigInt           @id @default(autoincrement())
   userId    BigInt?
+  user      User?            @relation(fields: [userId], references: [id])
   title     String
-  body      String   @db.Text
+  body      String           @db.Text
   type      NotificationType
   readAt    DateTime?
-  createdAt DateTime @default(now())
+  createdAt DateTime         @default(now())
+
+  @@index([userId, readAt, createdAt]) // DB-013
 }
+
 enum NotificationType {
   SYSTEM
   PROMOTION
@@ -540,26 +661,28 @@ enum NotificationType {
 }
 
 model ContactSubmission {
-  id        BigInt   @id @default(autoincrement())
+  id        BigInt        @id @default(autoincrement())
   fullName  String
   email     String
   subject   String?
-  message   String   @db.Text
+  message   String        @db.Text
   status    ContactStatus @default(NEW)
-  createdAt DateTime @default(now())
+  createdAt DateTime      @default(now())
 }
+
 enum ContactStatus {
   NEW
   RESOLVED
 }
 
 model NotificationTemplate {
-  id           BigInt @id @default(autoincrement())
-  code         String @unique
+  id           BigInt          @id @default(autoincrement())
+  code         String          @unique
   channel      TemplateChannel
   subject      String?
-  bodyTemplate String @db.Text
+  bodyTemplate String          @db.Text
 }
+
 enum TemplateChannel {
   EMAIL
   IN_APP
@@ -567,24 +690,29 @@ enum TemplateChannel {
 
 // ===== ADMIN — AUDIT & SETTING =====
 model AuditLog {
-  id           BigInt   @id @default(autoincrement())
-  adminUserId  BigInt
-  action       String
-  targetType   String
-  targetId     BigInt?
-  beforeData   Json?
-  afterData    Json?
-  ipAddress    String?
-  createdAt    DateTime @default(now())
+  id          BigInt   @id @default(autoincrement())
+  adminUserId BigInt
+  adminUser   User     @relation(fields: [adminUserId], references: [id])
+  action      String
+  targetType  String
+  targetId    BigInt?
+  beforeData  Json?
+  afterData   Json?
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([createdAt]) // DB-012
+  @@index([adminUserId, createdAt])
+  @@index([targetType, targetId])
 }
 
 model ActivityLog {
   id          BigInt   @id @default(autoincrement())
   userId      BigInt
-  user        User     @relation(fields: [userId], references: [id])
-  action      String   // e.g. "USER_LOGIN", "BOOKING_CREATED", "PAYMENT_SUCCESS"
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  action      String // e.g. "USER_LOGIN", "BOOKING_CREATED", "PAYMENT_SUCCESS"
   description String?
-  metadata    Json?    // e.g. { "bookingId": "123", "amount": "500000" }
+  metadata    Json? // e.g. { "bookingId": "123", "amount": "500000" }
   ipAddress   String?
   createdAt   DateTime @default(now())
 

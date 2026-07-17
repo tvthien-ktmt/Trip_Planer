@@ -56,67 +56,74 @@ export class EmailProcessor extends WorkerHost {
     }
   }
 
+  // BE-030 fix: Helper to mask email address
+  private maskEmail(email: string): string {
+    const parts = email.split('@');
+    if (parts.length !== 2) return '***@***';
+    const name = parts[0];
+    const domain = parts[1];
+    return `${name.substring(0, 2)}***@${domain}`;
+  }
+
   private async handleVerifyEmail(data: VerifyEmailJob): Promise<void> {
     // In production: use Nodemailer with SMTP
-    // const transporter = nodemailer.createTransport({ host: SMTP_HOST, ... })
-    // await transporter.sendMail({ to: data.to, subject: '...', html: template })
-
-    this.logger.log(`📧 [VERIFY EMAIL] → ${data.to}`);
+    
+    // BE-030 fix: Mask PII in logs
+    this.logger.log(`📧 [VERIFY EMAIL] → ${this.maskEmail(data.to)}`);
     this.logger.log(`   Subject: Xác thực email tài khoản Trip Planner`);
-    this.logger.log(`   OTP: ${data.otp}`);
     this.logger.log(
-      `   Template: Chào ${data.fullName}, mã OTP của bạn là: ${data.otp} (hết hạn sau 5 phút)`,
+      `   Template: Chào [USER], mã OTP của bạn đã được gửi.`,
     );
   }
 
   private async handleBookingConfirmation(
     data: BookingConfirmationJob,
   ): Promise<void> {
-    this.logger.log(`📧 [BOOKING CONFIRMATION] → ${data.to}`);
+    this.logger.log(`📧 [BOOKING CONFIRMATION] → ${this.maskEmail(data.to)}`);
     this.logger.log(`   Subject: Xác nhận đặt chỗ #${data.bookingCode}`);
     this.logger.log(
-      `   Template: Chào ${data.fullName}, đặt chỗ ${data.bookingCode} trị giá ` +
+      `   Template: Chào [USER], đặt chỗ ${data.bookingCode} trị giá ` +
         `${data.totalAmount.toLocaleString('vi-VN')} ${data.currency} đã được xác nhận.`,
     );
   }
 
   private async handleInvoice(data: InvoiceJob): Promise<void> {
-    this.logger.log(`📧 [INVOICE] → ${data.to}`);
+    this.logger.log(`📧 [INVOICE] → ${this.maskEmail(data.to)}`);
     this.logger.log(
       `   Subject: Hóa đơn thanh toán - Booking #${data.bookingCode}`,
     );
     this.logger.log(
-      `   Template: Hóa đơn cho ${data.fullName} - ` +
+      `   Template: Hóa đơn cho [USER] - ` +
         `${data.amount.toLocaleString('vi-VN')} ${data.currency} qua ${data.method} - ` +
         `Mã GD: ${data.paymentRef}`,
     );
   }
 
   private async handleRefundResult(data: RefundResultJob): Promise<void> {
-    this.logger.log(`📧 [REFUND RESULT] → ${data.to}`);
+    this.logger.log(`📧 [REFUND RESULT] → ${this.maskEmail(data.to)}`);
     this.logger.log(
       `   Subject: Kết quả hoàn tiền - Booking #${data.bookingCode}`,
     );
 
     if (data.status === 'APPROVED') {
       this.logger.log(
-        `   Template: Chào ${data.fullName}, yêu cầu hoàn tiền ` +
+        `   Template: Chào [USER], yêu cầu hoàn tiền ` +
           `${data.amount.toLocaleString('vi-VN')} ${data.currency} đã được CHẤP THUẬN.`,
       );
     } else {
       this.logger.log(
-        `   Template: Chào ${data.fullName}, yêu cầu hoàn tiền đã bị TỪ CHỐI. ` +
+        `   Template: Chào [USER], yêu cầu hoàn tiền đã bị TỪ CHỐI. ` +
           `Lý do: ${data.reason || 'Không có lý do'}`,
       );
     }
   }
 
   private async handlePasswordReset(data: PasswordResetJob): Promise<void> {
-    this.logger.log(`📧 [PASSWORD RESET] → ${data.to}`);
+    // BE-030 fix: Mask PII in logs
+    this.logger.log(`📧 [PASSWORD RESET] → ${this.maskEmail(data.to)}`);
     this.logger.log(`   Subject: Đặt lại mật khẩu Trip Planner`);
-    this.logger.log(`   OTP: ${data.otp}`);
     this.logger.log(
-      `   Template: Chào ${data.fullName}, mã OTP đặt lại mật khẩu: ${data.otp} (5 phút)`,
+      `   Template: Chào [USER], mã OTP đặt lại mật khẩu đã được gửi.`,
     );
   }
 }

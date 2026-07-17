@@ -1,11 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { destinations } from '../../mocks/destinations';
+import { api } from '../../lib/api';
 
-// Hàm giả lập gọi API
-const fetchDestinations = async () => {
-  return new Promise<typeof destinations>((resolve) => {
-    setTimeout(() => resolve(destinations), 500); // Fake delay 500ms
-  });
+const fetchDestinations = async (): Promise<any[]> => {
+  const { data } = await api.get('/destinations');
+  return data.data || data;
 };
 
 export const useDestinationsQuery = () => {

@@ -30,7 +30,7 @@ export const DestinationAutocomplete = ({ value, onChange, placeholder = "Bạn 
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filtered = destinations?.filter(d => 
+  const filtered = destinations?.filter((d: any) => 
     d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     d.location.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];

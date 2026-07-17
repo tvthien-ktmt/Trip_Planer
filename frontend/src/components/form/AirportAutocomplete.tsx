@@ -66,8 +66,8 @@ export const AirportAutocomplete = ({ label, placeholder, value, onChange }: Air
               onChange('');
             }
           }}
-          onFocus={(e) => { e.target.style.borderColor = "var(--color-ocean-600)"; setIsOpen(true); }}
-          onBlur={(e) => { e.target.style.borderColor = "var(--border-main)"; }}
+          onFocus={() => setIsOpen(true)}
+          
         />
       </div>
 

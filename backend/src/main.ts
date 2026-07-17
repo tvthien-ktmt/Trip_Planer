@@ -6,9 +6,20 @@ import { GlobalExceptionFilter } from './common/filters/global-exception.filter'
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 import * as fs from 'fs';
+import helmet from 'helmet';
+import hpp from 'hpp';
+import * as express from 'express';
+import { Logger } from 'nestjs-pino';
 
 async function bootstrap() {
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
+  app.useLogger(app.get(Logger));
+
+  // BE-014 fix: Add Helmet, HPP, and body size limits
+  app.use(helmet());
+  app.use(hpp());
+  app.use(express.json({ limit: '1mb' }));
+  app.use(express.urlencoded({ limit: '1mb', extended: true }));
 
   // Create upload directories if they don't exist
   const uploadDirs = ['uploads/avatars', 'uploads/blog', 'uploads/gallery'];
@@ -24,11 +35,22 @@ async function bootstrap() {
     prefix: '/uploads',
   });
 
-  // Enable CORS
+  // BE-004 fix: CORS origin:'*' + credentials:true is invalid (browsers reject it)
+  // Use explicit origin whitelist from env var
+  const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:3001,http://localhost:3000')
+    .split(',')
+    .map((o) => o.trim())
+    .filter(Boolean);
   app.enableCors({
-    origin: '*',
-    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE',
+    origin: (origin, callback) => {
+      // Allow requests with no origin (e.g. Postman, mobile apps, curl)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.includes(origin)) return callback(null, true);
+      callback(new Error(`CORS: Origin ${origin} not allowed`));
+    },
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
     credentials: true,
+    allowedHeaders: ['Content-Type', 'Authorization', 'x-session-token'],
   });
 
   // Global Validation Pipe

@@ -11,6 +11,7 @@ import {
 import { Button } from "../ui/Button";
 import { useUIStore, useAuthStore, useChecklistStore, useWishlistStore, useBookingCartStore } from "../../stores";
 import { useTranslation } from "react-i18next";
+import { useMounted } from "../../hooks/useMounted";
 import { toast } from "sonner";
 
 export const Header = () => {
@@ -22,13 +23,14 @@ export const Header = () => {
   const pathname = usePathname();
   const navigate = useRouter();
 
+  const mounted = useMounted();
   const { theme, toggleTheme, language, setLanguage, currency, setCurrency } = useUIStore();
   const { isAuthenticated, user, setLoginModalOpen, logout } = useAuthStore();
   const setSidebarOpen = useChecklistStore((state) => state.setSidebarOpen);
   const wishlistCount = useWishlistStore((state) => state.tourIds.length + state.destinationIds.length);
   const cartCount = useBookingCartStore((state) => state.items.length);
 
-  const isDark = theme === "dark";
+  const isDark = mounted && theme === "dark";
 
   const navLinks = [
     { name: t("header.home", "Trang chủ"), path: "/" },
@@ -185,7 +187,7 @@ export const Header = () => {
             </div>
 
             {/* User-action group */}
-            {isAuthenticated ? (
+            {mounted ? (isAuthenticated ? (
               <div className="flex items-center gap-1">
                 {/* Checklist */}
                 <button
@@ -321,7 +323,7 @@ export const Header = () => {
                   {t("header.register", "Đăng ký")}
                 </Button>
               </div>
-            )}
+            )) : <div className="w-32"></div>} 
           </div>
 
           {/* Mobile: theme + hamburger */}
@@ -407,7 +409,7 @@ export const Header = () => {
           </div>
 
           <div className="px-4 pb-6 border-t border-[var(--border-main)] pt-4">
-            {isAuthenticated ? (
+            {mounted ? (isAuthenticated ? (
               <div className="space-y-2">
                 <div className="flex items-center gap-3 px-2 mb-4">
                   <img
@@ -429,7 +431,7 @@ export const Header = () => {
                   <Briefcase className="w-5 h-5 text-[var(--text-secondary)]" /> Đặt chỗ của tôi
                 </Link>
                 <button onClick={() => { handleLogout(); setIsMobileMenuOpen(false); }}
-                  className="flex items-center gap-3 py-2 px-2 w-full text-left font-medium hover:bg-[var,(--bg-main)] rounded-[var(--radius-radius-sm)] transition-custom mt-2"
+                  className="flex items-center gap-3 py-2 px-2 w-full text-left font-medium hover:bg-[var(--bg-main)] rounded-[var(--radius-radius-sm)] transition-custom mt-2"
                   style={{ color: "var(--color-danger)" }}>
                   <LogOut className="w-5 h-5" /> Đăng xuất
                 </button>
@@ -443,7 +445,7 @@ export const Header = () => {
                   Đăng ký tài khoản
                 </Button>
               </div>
-            )}
+            )) : <div className="h-32"></div>}
           </div>
         </div>
       )}

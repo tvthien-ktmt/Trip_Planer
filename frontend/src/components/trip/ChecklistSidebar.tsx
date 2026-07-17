@@ -16,7 +16,7 @@ export const ChecklistSidebar = () => {
     if (!newItemText.trim()) return;
     
     addItem(tripId, {
-      id: `item-${Date.now()}`,
+      id: `item-${crypto.randomUUID()}`,
       category: 'Other',
       text: newItemText.trim(),
       isCompleted: false

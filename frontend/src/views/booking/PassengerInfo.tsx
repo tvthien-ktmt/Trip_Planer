@@ -1,34 +1,50 @@
 'use client';
 import { useEffect, useState } from 'react';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useBookingFlowStore, useSearchFlightStore } from '../../stores';
+import { PassengerInfo as PassengerInfoType } from '../../types';
 
 export default function PassengerInfo() {
   const navigate = useRouter();
   const { setStep, updateBookingData, passengerInfo } = useBookingFlowStore();
   const { passengers } = useSearchFlightStore();
   
-  const [formData, setFormData] = useState<{ name: string; type: string; dob: string; passport: string; }[]>(passengerInfo.length ? passengerInfo : Array.from({ length: passengers.adults }).map(() => ({ name: '', type: 'Adult', dob: '', passport: '' })));
+  const [formData, setFormData] = useState<PassengerInfoType[]>(
+    passengerInfo.length ? passengerInfo : Array.from({ length: passengers.adults }).map((_, index) => ({ 
+      id: `pax-${index}`, 
+      type: 'adult', 
+      title: 'Mr',
+      firstName: '', 
+      lastName: '', 
+      dob: '', 
+      idNumber: '', 
+      nationality: 'VN' 
+    }))
+  );
 
   useEffect(() => {
     setStep(2);
   }, [setStep]);
 
-  const handleChange = (index: number, field: string, value: string) => {
+  const handleChange = (index: number, field: keyof PassengerInfoType, value: string) => {
     const newForm = [...formData];
-    newForm[index] = { ...newForm[index], [field]: value };
-    setFormData(newForm);
+    const item = newForm[index];
+    if (item) {
+      newForm[index] = { ...item, [field]: value };
+      setFormData(newForm);
+    }
   };
 
   const handleNext = () => {
     // Validate
-    const isValid = formData.every(p => p.name && p.dob);
+    const isValid = formData.every(p => p.firstName && p.lastName && p.dob);
     if (!isValid) {
-      alert('Vui lòng điền đầy đủ thông tin bắt buộc (Tên, Ngày sinh)');
+      toast.error('Vui lòng điền đầy đủ thông tin bắt buộc (Họ, Tên, Ngày sinh)');
       return;
     }
     updateBookingData({ passengerInfo: formData });
-    navigate.push('/booking/seat-selection');
+    navigate.push('/booking/seat');
   };
 
   return (
@@ -40,13 +56,23 @@ export default function PassengerInfo() {
             <h3 className="font-bold text-gray-900 dark:text-white mb-4">Hành khách {index + 1} ({p.type})</h3>
             <div className="grid md:grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Họ và tên *</label>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Họ *</label>
                 <input 
                   type="text" 
-                  value={p.name}
-                  onChange={(e) => handleChange(index, 'name', e.target.value)}
+                  value={p.lastName}
+                  onChange={(e) => handleChange(index, 'lastName', e.target.value)}
                   className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white"
-                  placeholder="VD: NGUYEN VAN A"
+                  placeholder="VD: NGUYEN"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Tên đệm và Tên *</label>
+                <input 
+                  type="text" 
+                  value={p.firstName}
+                  onChange={(e) => handleChange(index, 'firstName', e.target.value)}
+                  className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white"
+                  placeholder="VD: VAN A"
                 />
               </div>
               <div>
@@ -58,12 +84,12 @@ export default function PassengerInfo() {
                   className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white"
                 />
               </div>
-              <div className="md:col-span-2">
+              <div>
                 <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">CCCD / Hộ chiếu</label>
                 <input 
                   type="text" 
-                  value={p.passport}
-                  onChange={(e) => handleChange(index, 'passport', e.target.value)}
+                  value={p.idNumber}
+                  onChange={(e) => handleChange(index, 'idNumber', e.target.value)}
                   className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white"
                 />
               </div>

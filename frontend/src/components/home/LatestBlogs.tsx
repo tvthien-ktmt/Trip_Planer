@@ -34,7 +34,7 @@ export const LatestBlogs = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {latest.map(post => (
+        {latest.map((post: any) => (
           <article key={post.id} className="group cursor-pointer">
             <div className="relative h-56 rounded-2xl overflow-hidden mb-4 shadow-sm">
               <img 

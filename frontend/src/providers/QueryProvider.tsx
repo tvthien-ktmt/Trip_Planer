@@ -9,24 +9,16 @@ export default function QueryProvider({ children }: { children: React.ReactNode 
   const [queryClient] = useState(() => new QueryClient({
     defaultOptions: {
       queries: {
-        staleTime: 60 * 1000,
+        staleTime: 0,
+        retry: 1,
         refetchOnWindowFocus: false,
       },
     },
   }));
 
-  const [mounted, setMounted] = useState(false);
-
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
   return (
     <QueryClientProvider client={queryClient}>
-      <div style={{ visibility: mounted ? 'visible' : 'hidden' }}>
-        {mounted ? children : null}
-      </div>
-      <Toaster position="top-right" richColors />
+      {children}
     </QueryClientProvider>
   );
 }

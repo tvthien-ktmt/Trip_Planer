@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { mockBlogPosts } from '../../mocks/data';
+import { api } from '../../lib/api';
 
 const fetchBlogs = async () => {
-  return new Promise<typeof mockBlogPosts>((resolve) => {
-    setTimeout(() => resolve(mockBlogPosts), 500);
-  });
+  const response = await api.get('/blog');
+  return response.data;
 };
 
 export const useBlogQuery = () => {

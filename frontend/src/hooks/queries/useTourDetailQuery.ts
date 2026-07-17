@@ -1,12 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { mockTours } from '../../mocks/data';
+import { api } from '../../lib/api';
 
 const fetchTourDetail = async (id: string) => {
-  return new Promise<typeof mockTours[0] | undefined>((resolve) => {
-    setTimeout(() => {
-      resolve(mockTours.find((t) => t.id === id));
-    }, 500);
-  });
+  const response = await api.get(`/tour/${id}`);
+  return response.data;
 };
 
 export const useTourDetailQuery = (id: string) => {

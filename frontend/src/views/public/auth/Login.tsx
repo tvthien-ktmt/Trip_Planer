@@ -20,18 +20,43 @@ export default function Login() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    // Simulate API call
-    setTimeout(() => {
+    
+    try {
+      const response = await fetch('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.message || 'Đăng nhập thất bại');
+        setIsLoading(false);
+        return;
+      }
+
+      // FE-005 fix: login with real token and user data
       login({
-        id: 'user-1',
-        name: 'Nguyễn Văn A',
-        email,
-        role: email.includes('admin') ? 'Admin' : 'User'
-      }, 'fake-jwt-token-123');
-      setIsLoading(false);
+        id: data.user.id,
+        name: data.user.fullName,
+        email: data.user.email,
+        role: data.user.role === 'ADMIN' ? 'Admin' : 'User',
+      }, data.access_token);
+      
+      // Store token in cookies for Next.js middleware (FE-001/FE-002)
+      document.cookie = `token=${data.access_token}; path=/; max-age=86400; samesite=lax`;
+
       toast.success('Đăng nhập thành công');
       navigate.push(redirect);
-    }, 1000);
+    } catch (error) {
+      console.error('Login error:', error);
+      toast.error('Có lỗi xảy ra khi kết nối đến máy chủ');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (
@@ -61,7 +86,7 @@ export default function Login() {
           <div>
             <div className="flex justify-between items-center mb-1">
               <label className="block text-sm font-medium text-gray-700 dark:text-gray-300">Mật khẩu</label>
-              <Link href="/auth/forgot-password" className="text-sm text-blue-600 hover:underline">Quên mật khẩu?</Link>
+              <Link href="/forgot-password" className="text-sm text-blue-600 hover:underline">Quên mật khẩu?</Link>
             </div>
             <div className="relative">
               <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-gray-400" />

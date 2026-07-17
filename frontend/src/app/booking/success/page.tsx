@@ -2,7 +2,7 @@
 import dynamic from 'next/dynamic';
 import { BookingLayout } from '@/components/layout/BookingLayout';
 
-const PageComponent = dynamic(() => import('@/views/booking/BookingSuccess'), { ssr: false });
+const PageComponent = dynamic(() => import('@/views/booking/BookingSuccess'));
 
 export default function Page() {
   return (

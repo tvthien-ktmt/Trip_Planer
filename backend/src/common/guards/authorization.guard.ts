@@ -3,11 +3,14 @@ import {
   CanActivate,
   ExecutionContext,
   ForbiddenException,
+  Inject,
 } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { ROLES_KEY } from '../decorators/roles.decorator';
 import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 
 /**
  * Authorization Guard — checks both Role and Permission.
@@ -28,6 +31,7 @@ export class AuthorizationGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
     private prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
@@ -86,11 +90,19 @@ export class AuthorizationGuard implements CanActivate {
    * Could be cached in Redis for production performance.
    */
   private async getUserPermissions(role: string): Promise<string[]> {
+    const cacheKey = `role_permissions_${role}`;
+    const cachedPermissions = await this.cacheManager.get<string[]>(cacheKey);
+    if (cachedPermissions) {
+      return cachedPermissions;
+    }
+
     const rolePermissions = await this.prisma.rolePermission.findMany({
       where: { role: role as any },
       include: { permission: true },
     });
 
-    return rolePermissions.map((rp) => rp.permission.code);
+    const permissions = rolePermissions.map((rp) => rp.permission.code);
+    await this.cacheManager.set(cacheKey, permissions, 300); // 5 minutes TTL
+    return permissions;
   }
 }

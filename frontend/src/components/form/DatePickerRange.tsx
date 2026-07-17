@@ -34,8 +34,6 @@ export const DatePickerRange = ({
             }}
             value={departureDate || ''}
             onChange={(e) => onChangeDeparture(e.target.value)}
-            onFocus={(e) => { e.target.style.borderColor = "var(--color-ocean-600)"; }}
-            onBlur={(e) => { e.target.style.borderColor = "var(--border-main)"; }}
           />
         </div>
         
@@ -55,8 +53,6 @@ export const DatePickerRange = ({
               min={departureDate || undefined}
               onChange={(e) => onChangeReturn(e.target.value)}
               placeholder="Khứ hồi"
-              onFocus={(e) => { e.target.style.borderColor = "var(--color-ocean-600)"; }}
-              onBlur={(e) => { e.target.style.borderColor = "var(--border-main)"; }}
             />
           </div>
         )}

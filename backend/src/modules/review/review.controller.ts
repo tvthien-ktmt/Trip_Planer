@@ -3,6 +3,27 @@ import { ReviewService } from './review.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
+import { IsEnum, IsInt, IsNotEmpty, IsOptional, IsString, Max, Min } from 'class-validator';
+import { ReviewableType } from '@prisma/client';
+
+class CreateReviewDto {
+  @IsEnum(ReviewableType)
+  @IsNotEmpty()
+  reviewableType: ReviewableType;
+
+  @IsString()
+  @IsNotEmpty()
+  reviewableId: string;
+
+  @IsInt()
+  @Min(1)
+  @Max(5)
+  rating: number;
+
+  @IsString()
+  @IsOptional()
+  comment?: string;
+}
 
 @ApiTags('Review')
 @Controller('api/reviews')
@@ -15,17 +36,14 @@ export class ReviewController {
   @ApiOperation({ summary: 'Create a new review' })
   async createReview(
     @CurrentUser() user: any,
-    @Body('reviewableType') reviewableType: 'TOUR' | 'FLIGHT',
-    @Body('reviewableId') reviewableId: string,
-    @Body('rating') rating: number,
-    @Body('comment') comment?: string,
+    @Body() dto: CreateReviewDto,
   ) {
     return this.reviewService.createReview(
       user.id,
-      reviewableType,
-      BigInt(reviewableId),
-      rating,
-      comment,
+      dto.reviewableType,
+      BigInt(dto.reviewableId),
+      dto.rating,
+      dto.comment,
     );
   }
 

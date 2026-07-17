@@ -16,7 +16,7 @@ export default function Blog() {
 
   const categories = ['All', 'Cuisine', 'Experience', 'Destination', 'Tips'];
 
-  const filteredBlogs = blogs?.filter(post => {
+  const filteredBlogs = blogs?.filter((post: any) => {
     const matchSearch = post.title.toLowerCase().includes(search.toLowerCase()) || post.excerpt.toLowerCase().includes(search.toLowerCase());
     const matchCat = category === 'All' || post.category === category;
     return matchSearch && matchCat;
@@ -74,7 +74,7 @@ export default function Blog() {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-              {paginatedBlogs.map(post => (
+              {paginatedBlogs.map((post: any) => (
                 <article key={post.id} className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-700 group flex flex-col cursor-pointer transition-shadow hover:shadow-md">
                   <div className="relative h-60 overflow-hidden">
                     <img 

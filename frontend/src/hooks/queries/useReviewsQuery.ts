@@ -1,12 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { mockReviews } from '../../mocks/data';
+import { api } from '../../lib/api';
 
 const fetchReviews = async (tourId: string) => {
-  return new Promise<typeof mockReviews>((resolve) => {
-    setTimeout(() => {
-      resolve(mockReviews.filter((r) => r.tourId === tourId));
-    }, 400);
-  });
+  const response = await api.get(`/review/tour/${tourId}`);
+  return response.data;
 };
 
 export const useReviewsQuery = (tourId: string) => {

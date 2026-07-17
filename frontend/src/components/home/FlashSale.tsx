@@ -1,9 +1,16 @@
 'use client';
-﻿import { useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import Link from 'next/link';
 
 import { Zap, ArrowRight } from "lucide-react";
 import { Button } from "../ui/Button";
+
+const TimeUnit = ({ value, label }: { value: number; label: string }) => (
+  <div className="flex flex-col items-center p-2 bg-white dark:bg-gray-800 rounded-[var(--radius-radius-md)] min-w-[60px] shadow-sm">
+    <span className="text-xl font-bold font-utility text-[var(--color-danger)]">{value.toString().padStart(2, '0')}</span>
+    <span className="text-xs font-medium text-[var(--text-secondary)]">{label}</span>
+  </div>
+);
 
 export const FlashSale = () => {
   const [timeLeft, setTimeLeft] = useState({ hours: 12, minutes: 45, seconds: 30 });
@@ -24,21 +31,7 @@ export const FlashSale = () => {
     return () => clearInterval(timer);
   }, []);
 
-  const TimeUnit = ({ value, label }: { value: number; label: string }) => (
-    <div className="text-center">
-      <div className="rounded-[var(--radius-radius-sm)] px-4 py-2 mb-1 min-w-[3.5rem]"
-        style={{ background: "rgba(255,255,255,0.15)" }}>
-        {/* Monospace font so digits don't jump — per spec */}
-        <span className="font-utility text-2xl font-semibold text-white">
-          {String(value).padStart(2, "0")}
-        </span>
-      </div>
-      <span className="text-xs uppercase tracking-wider" style={{ color: "var(--color-lantern-500-dark)", opacity: 0.85 }}>
-        {label}
-      </span>
-    </div>
-  );
-
+  
   return (
     <section className="py-[var(--spacing-space-8)]" style={{ background: "var(--color-ocean-900)" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">

@@ -56,7 +56,7 @@ export const mockBlogPosts: BlogPost[] = [
     id: `blog-auto-${i+4}`,
     title: `Khám phá bí ẩn của điểm đến ${i+4} mà bạn chưa từng biết`,
     slug: `kham-pha-bi-an-${i+4}`,
-    coverImage: blogImages[i],
+    coverImage: blogImages[i] || '',
     excerpt: 'Lorem ipsum dolor sit amet, consectetur adipiscing elit. Aliquam at porttitor sem. Aliquam erat volutpat.',
     content: 'Phần nội dung chi tiết. Lorem ipsum dolor sit amet, consectetur adipiscing elit. Vivamus lacinia odio vitae vestibulum vestibulum.',
     author: 'Guest Writer',

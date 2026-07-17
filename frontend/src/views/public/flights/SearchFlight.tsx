@@ -1,5 +1,6 @@
 'use client';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
 import { useSearchFlightStore } from '../../../stores';
 import { AirportAutocomplete } from '../../../components/form/AirportAutocomplete';
 import { DatePickerRange } from '../../../components/form/DatePickerRange';
@@ -10,7 +11,7 @@ export default function SearchFlight() {
 
   const handleSearch = () => {
     if (!searchStore.departure || !searchStore.destination) {
-      alert('Vui lòng chọn điểm đi và điểm đến');
+      toast.error('Vui lòng chọn điểm đi và điểm đến');
       return;
     }
     navigate.push('/flights/results');

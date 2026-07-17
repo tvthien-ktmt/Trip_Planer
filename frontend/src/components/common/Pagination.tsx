@@ -9,7 +9,7 @@ interface PaginationProps {
 }
 
 export const Pagination = ({ currentPage, totalPages, onPageChange, className }: PaginationProps) => {
-  const pages = Array.from({ length: totalPages }, (_, i) => i + 1);
+  const pages = Array.from({ length: Math.min(totalPages, 5) }, (_, i) => Math.max(1, Math.min(currentPage - 2 + i, totalPages)));
 
   return (
     <div className={cn("flex items-center justify-center gap-2", className)}>

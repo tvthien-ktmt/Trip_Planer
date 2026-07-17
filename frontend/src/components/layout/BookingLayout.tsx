@@ -9,11 +9,11 @@ import { useEffect } from 'react';
 
 const stepPaths = [
   '/booking/fare-class',
-  '/booking/passenger-info',
-  '/booking/seat-selection',
+  '/booking/passenger',
+  '/booking/seat',
   '/booking/baggage',
   '/booking/meal',
-  '/booking/add-ons',
+  '/booking/addons',
   '/booking/payment',
   '/booking/success',
 ];

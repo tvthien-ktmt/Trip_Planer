@@ -10,23 +10,35 @@ export default function UserList() {
   const [users, setUsers] = useState([
     { id: '1', name: 'Nguyễn Văn A', email: 'nva@gmail.com', role: 'User', status: 'Active', joinDate: '20/10/2023', isDeleted: false },
     { id: '2', name: 'Trần Thị B', email: 'ttb@gmail.com', role: 'User', status: 'Locked', joinDate: '15/11/2023', isDeleted: false },
-    { id: '3', name: 'Lê Hoàng C', email: 'lhc@gmail.com', role: 'Staff', status: 'Active', joinDate: '01/12/2023', isDeleted: false },
+    { id: '3', name: 'Lê Hoàng C', email: 'lhc@gmail.com', role: 'Admin', status: 'Active', joinDate: '01/12/2023', isDeleted: false },
     { id: '4', name: 'Phạm D', email: 'pd@gmail.com', role: 'User', status: 'Active', joinDate: '10/12/2023', isDeleted: true }, // Soft deleted
     { id: '999', name: 'Admin T', email: 'admin@tripplanner.com', role: 'Admin', status: 'Active', joinDate: '01/01/2023', isDeleted: false },
   ]);
 
   const handleToggleLock = (id: string, currentStatus: string) => {
-    if (window.confirm(`Bạn có chắc chắn muốn ${currentStatus === 'Active' ? 'khóa' : 'mở khóa'} tài khoản này?`)) {
-      setUsers(users.map(u => u.id === id ? { ...u, status: currentStatus === 'Active' ? 'Locked' : 'Active' } : u));
-      toast.success(`Đã ${currentStatus === 'Active' ? 'khóa' : 'mở khóa'} tài khoản thành công`);
-    }
+    toast.warning(`Bạn có chắc chắn muốn ${currentStatus === 'Active' ? 'khóa' : 'mở khóa'} tài khoản này?`, {
+      action: {
+        label: 'Đồng ý',
+        onClick: () => {
+          setUsers(prev => prev.map(u => u.id === id ? { ...u, status: currentStatus === 'Active' ? 'Locked' : 'Active' } : u));
+          toast.success(`Đã ${currentStatus === 'Active' ? 'khóa' : 'mở khóa'} tài khoản thành công`);
+        }
+      },
+      cancel: { label: 'Hủy', onClick: () => {} }
+    });
   };
 
   const handleSoftDelete = (id: string) => {
-    if (window.confirm('Chuyển tài khoản này vào thùng rác (Soft Delete)?')) {
-      setUsers(users.map(u => u.id === id ? { ...u, isDeleted: true } : u));
-      toast.success('Đã xóa mềm tài khoản');
-    }
+    toast.warning('Chuyển tài khoản này vào thùng rác (Soft Delete)?', {
+      action: {
+        label: 'Đồng ý',
+        onClick: () => {
+          setUsers(prev => prev.map(u => u.id === id ? { ...u, isDeleted: true } : u));
+          toast.success('Đã xóa mềm tài khoản');
+        }
+      },
+      cancel: { label: 'Hủy', onClick: () => {} }
+    });
   };
 
   const handleRestore = (id: string) => {

@@ -47,7 +47,7 @@ export const useChecklistStore = create<ChecklistState>()(
         set((state) => {
           const newItems = templateItems.map((ti, index) => ({
             ...ti,
-            id: `tpl-${Date.now()}-${index}`,
+            id: `tpl-${crypto.randomUUID()}-${index}`,
             isCompleted: false,
           }));
           return {

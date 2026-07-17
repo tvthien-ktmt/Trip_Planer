@@ -15,6 +15,7 @@ import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
+import * as fs from 'fs';
 import {
   ApiTags,
   ApiOperation,
@@ -53,8 +54,42 @@ const imageFilter = (_req: any, file: Express.Multer.File, cb: any) => {
       false,
     );
   }
+  
+  // BE-044 fix: Force safe extensions based on mimetype
+  const ext = extname(file.originalname).toLowerCase();
+  const allowedExts = ['.jpg', '.jpeg', '.png', '.gif', '.webp'];
+  if (!allowedExts.includes(ext)) {
+    return cb(
+      new BadRequestException('Invalid file extension'),
+      false,
+    );
+  }
+  
   cb(null, true);
 };
+
+// BE-043 fix: Validate magic bytes to prevent spoofing
+async function validateImageSignature(filePath: string): Promise<boolean> {
+  const fd = await fs.promises.open(filePath, 'r');
+  try {
+    const buffer = Buffer.alloc(12);
+    await fd.read(buffer, 0, 12, 0);
+    const hex = buffer.toString('hex').toUpperCase();
+
+    // JPEG: FF D8 FF
+    if (hex.startsWith('FFD8FF')) return true;
+    // PNG: 89 50 4E 47
+    if (hex.startsWith('89504E47')) return true;
+    // GIF: 47 49 46 38
+    if (hex.startsWith('47494638')) return true;
+    // WebP: RIFF ... WEBP (bytes 0-3 = 52 49 46 46, bytes 8-11 = 57 45 42 50)
+    if (hex.startsWith('52494646') && hex.substring(16, 24) === '57454250') return true;
+
+    return false;
+  } finally {
+    await fd.close();
+  }
+}
 
 @ApiTags('File Upload')
 @Controller('api/upload')
@@ -84,6 +119,13 @@ export class UploadController {
     @CurrentUser() user: any,
   ) {
     if (!file) throw new BadRequestException('No file uploaded');
+
+    // BE-043 fix: validate magic bytes
+    const isValid = await validateImageSignature(file.path);
+    if (!isValid) {
+      await fs.promises.unlink(file.path).catch(() => {});
+      throw new BadRequestException('Invalid file signature (spoofed extension detected)');
+    }
 
     const fileUrl = `/uploads/avatars/${file.filename}`;
 
@@ -135,6 +177,13 @@ export class UploadController {
   ) {
     if (!file) throw new BadRequestException('No file uploaded');
 
+    // BE-043 fix: validate magic bytes
+    const isValid = await validateImageSignature(file.path);
+    if (!isValid) {
+      await fs.promises.unlink(file.path).catch(() => {});
+      throw new BadRequestException('Invalid file signature');
+    }
+
     const fileUrl = `/uploads/blog/${file.filename}`;
 
     const mediaFile = await this.prisma.mediaFile.create({
@@ -184,6 +233,16 @@ export class UploadController {
   ) {
     if (!files || files.length === 0) {
       throw new BadRequestException('No files uploaded');
+    }
+
+    // Validate all signatures first
+    for (const file of files) {
+      const isValid = await validateImageSignature(file.path);
+      if (!isValid) {
+        // Cleanup all uploaded files in this batch if one is invalid
+        await Promise.all(files.map(f => fs.promises.unlink(f.path).catch(() => {})));
+        throw new BadRequestException(`Invalid file signature detected in file: ${file.originalname}`);
+      }
     }
 
     const results = await Promise.all(
@@ -267,6 +326,16 @@ export class UploadController {
     }
 
     // In production: delete from disk/S3 as well
+    if (file.fileUrl) {
+      const filePath = join(process.cwd(), file.fileUrl);
+      const uploadsDir = join(process.cwd(), 'uploads');
+      // BE-021 fix: Prevent directory traversal when unlinking
+      if (filePath.startsWith(uploadsDir)) {
+        await fs.promises.unlink(filePath).catch((err) => {
+          console.error(`Failed to delete file ${filePath}:`, err);
+        });
+      }
+    }
     await this.prisma.mediaFile.delete({ where: { id: BigInt(id) } });
 
     return { success: true, message: 'File deleted' };

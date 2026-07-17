@@ -18,7 +18,7 @@ export default function Checklist() {
     if (!newItemText.trim()) return;
     
     addItem(tripId, {
-      id: `item-${Date.now()}`,
+      id: `item-${crypto.randomUUID()}`,
       text: newItemText,
       isCompleted: false,
       category: 'Other'

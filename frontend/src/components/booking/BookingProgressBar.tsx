@@ -1,13 +1,13 @@
-﻿import { useBookingFlowStore } from "../../stores/bookingFlowStore";
+import { useBookingFlowStore } from "../../stores/bookingFlowStore";
 import { Check, Plane } from "lucide-react";
 
 const STEPS = [
   { id: 1, name: "Hạng vé", path: "/booking/fare-class" },
-  { id: 2, name: "Hành khách", path: "/booking/passenger-info" },
-  { id: 3, name: "Chỗ ngồi", path: "/booking/seat-selection" },
+  { id: 2, name: "Hành khách", path: "/booking/passenger" },
+  { id: 3, name: "Chỗ ngồi", path: "/booking/seat" },
   { id: 4, name: "Hành lý", path: "/booking/baggage" },
   { id: 5, name: "Suất ăn", path: "/booking/meal" },
-  { id: 6, name: "Dịch vụ", path: "/booking/add-ons" },
+  { id: 6, name: "Dịch vụ", path: "/booking/addons" },
   { id: 7, name: "Thanh toán", path: "/booking/payment" },
 ];
 

@@ -33,7 +33,7 @@ export default function BookingSuccess() {
 
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
         <button 
-          onClick={() => navigate.push('/booking/ticket/VN8A2B')}
+          onClick={() => navigate.push('/booking/ticket/NEWPNR')}
           className="flex items-center justify-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold"
         >
           <Download className="w-5 h-5" /> Tải e-Ticket

@@ -13,10 +13,16 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     private prisma: PrismaService,
     private authService: AuthService,
   ) {
+    const jwtSecret = configService.get<string>('JWT_ACCESS_SECRET');
+    if (!jwtSecret) {
+      throw new Error(
+        '[FATAL] JWT_ACCESS_SECRET environment variable is not set. Application startup aborted for security.',
+      );
+    }
     super({
       jwtFromRequest: ExtractJwt.fromAuthHeaderAsBearerToken(),
       ignoreExpiration: false,
-      secretOrKey: configService.get<string>('JWT_ACCESS_SECRET') || 'secret',
+      secretOrKey: jwtSecret, // BE-003 fix: No fallback to 'secret'
       passReqToCallback: true,
     });
   }

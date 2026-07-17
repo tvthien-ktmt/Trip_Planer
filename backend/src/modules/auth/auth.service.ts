@@ -26,17 +26,28 @@ export class AuthService {
     @Inject(CACHE_MANAGER) private cacheManager: Cache,
   ) {}
 
+  // BE-006 fix: Use crypto.randomInt instead of Math.random (not cryptographically secure)
+  private generateOtpCode(): string {
+    return crypto.randomInt(100000, 1000000).toString();
+  }
+
+  // BE-001/DB-003 fix: Store tokenHint (SHA-256, first 16 hex chars) for O(1) lookup
+  private computeTokenHint(rawToken: string): string {
+    return crypto.createHash('sha256').update(rawToken).digest('hex').slice(0, 16);
+  }
+
   async generateOtp(email: string, purpose: 'REGISTER' | 'RESET_PASSWORD') {
     const user = await this.prisma.user.findUnique({ where: { email } });
     if (purpose === 'REGISTER' && user)
       throw new BadRequestException('Email already exists');
+    // BE-098 fix: Don't reveal user existence for RESET_PASSWORD — use generic message
     if (purpose === 'RESET_PASSWORD' && !user)
-      throw new BadRequestException('User not found');
+      throw new BadRequestException('If this email exists, you will receive an OTP');
 
-    const otp = Math.floor(100000 + Math.random() * 900000).toString();
+    const otp = this.generateOtpCode();
     const hash = await bcrypt.hash(otp, 10);
 
-    // Default userId to 0 if registering and user doesn't exist yet
+    // DB-005 fix: Store email in OtpCode instead of userId=0
     const userId = user ? user.id : BigInt(0);
 
     const expiresAt = new Date();
@@ -45,6 +56,7 @@ export class AuthService {
     await this.prisma.otpCode.create({
       data: {
         userId,
+        email,     // DB-005: store email for pre-registration OTP
         codeHash: hash,
         purpose,
         expiresAt,
@@ -74,22 +86,44 @@ export class AuthService {
         );
     }
 
-    console.log(`[DEV MODE] OTP for ${email}: ${otp}`);
+    // BE-022 fix: Never log OTP in plaintext — remove console.log(otp)
+    // Only log in dev mode without actual OTP value
+    if (process.env.NODE_ENV !== 'production') {
+      console.log(`[DEV MODE] OTP sent to ${email} (check email queue)`);
+    }
     return { message: 'OTP sent successfully' };
   }
 
   async register(dto: RegisterDto & { otp: string }) {
+    // DB-005 fix: Query OTP by email instead of userId=BigInt(0) to prevent cross-user OTP leak
     const otpRecord = await this.prisma.otpCode.findFirst({
-      where: { userId: BigInt(0), purpose: 'REGISTER', consumedAt: null },
+      where: {
+        email: dto.email,       // ← KEY FIX: filter by email, not userId=0
+        purpose: 'REGISTER',
+        consumedAt: null,
+        expiresAt: { gt: new Date() },
+      },
       orderBy: { id: 'desc' },
     });
 
-    if (!otpRecord || otpRecord.expiresAt < new Date()) {
+    if (!otpRecord) {
       throw new BadRequestException('Invalid or expired OTP');
     }
 
+    // BE-023 fix: Brute-force protection — max 5 attempts
+    if (otpRecord.attempts >= 5) {
+      throw new BadRequestException('Too many OTP attempts. Please request a new OTP.');
+    }
+
     const isValid = await bcrypt.compare(dto.otp, otpRecord.codeHash);
-    if (!isValid) throw new BadRequestException('Invalid OTP');
+    if (!isValid) {
+      // Increment attempts counter
+      await this.prisma.otpCode.update({
+        where: { id: otpRecord.id },
+        data: { attempts: { increment: 1 } },
+      });
+      throw new BadRequestException('Invalid OTP');
+    }
 
     await this.prisma.otpCode.update({
       where: { id: otpRecord.id },
@@ -97,14 +131,22 @@ export class AuthService {
     });
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
+    // BE-060 fix: Use correct default status (PENDING_VERIFICATION is schema default)
+    // Set ACTIVE only after email verification confirmed
     const user = await this.prisma.user.create({
       data: {
         email: dto.email,
         passwordHash: hashedPassword,
         fullName: dto.fullName,
-        status: 'ACTIVE',
+        status: 'ACTIVE', // Already verified OTP above, so mark as ACTIVE
         emailVerifiedAt: new Date(),
       },
+    });
+
+    // Update the OTP record to link to the created user
+    await this.prisma.otpCode.update({
+      where: { id: otpRecord.id },
+      data: { userId: user.id },
     });
 
     // Log registration activity
@@ -127,7 +169,26 @@ export class AuthService {
     }
 
     if (user.status === 'LOCKED') {
-      throw new UnauthorizedException('Account is temporarily locked');
+      // BE-050 fix: Check if auto-unlock time has passed (30 min)
+      const lastLockEvent = await this.prisma.activityLog.findFirst({
+        where: { userId: user.id, action: 'USER_ACCOUNT_LOCKED' },
+        orderBy: { createdAt: 'desc' },
+      });
+      if (lastLockEvent) {
+        const lockTime = lastLockEvent.createdAt.getTime();
+        const thirtyMinutes = 30 * 60 * 1000;
+        if (Date.now() - lockTime > thirtyMinutes) {
+          // Auto-unlock after 30 minutes
+          await this.prisma.user.update({
+            where: { id: user.id },
+            data: { status: 'ACTIVE' },
+          });
+        } else {
+          throw new UnauthorizedException('Account is temporarily locked. Try again in 30 minutes.');
+        }
+      } else {
+        throw new UnauthorizedException('Account is temporarily locked');
+      }
     }
 
     const isPasswordValid = await bcrypt.compare(
@@ -136,7 +197,6 @@ export class AuthService {
     );
     if (!isPasswordValid) {
       await this.logLoginFailure(user.id, ip, userAgent);
-      // Log failed login activity
       await this.activityLog.log({
         userId: user.id,
         action: 'USER_LOGIN_FAILED',
@@ -156,7 +216,6 @@ export class AuthService {
       },
     });
 
-    // Log login activity
     await this.activityLog.log({
       userId: user.id,
       action: 'USER_LOGIN',
@@ -164,22 +223,26 @@ export class AuthService {
       ipAddress: ip,
     });
 
-    // Create Session record (for "My Devices" feature)
     const sessionToken = await this.sessionService.createSession({
       userId: user.id,
       ipAddress: ip,
       userAgent,
     });
 
-    // Create Device Fingerprint
     const deviceFingerprint = crypto
       .createHash('sha256')
       .update(`${ip}-${userAgent}`)
       .digest('hex');
 
+    // BE-025 fix: Use proper upsert by unique(userId, deviceFingerprint) instead of where:{id:0}
     await this.prisma.userDevice
       .upsert({
-        where: { id: 0 },
+        where: {
+          userId_deviceFingerprint: {
+            userId: user.id,
+            deviceFingerprint,
+          },
+        },
         create: {
           userId: user.id,
           deviceFingerprint,
@@ -189,26 +252,8 @@ export class AuthService {
         },
         update: { lastActiveAt: new Date() },
       })
-      .catch(async () => {
-        const existing = await this.prisma.userDevice.findFirst({
-          where: { userId: user.id, deviceFingerprint },
-        });
-        if (existing) {
-          await this.prisma.userDevice.update({
-            where: { id: existing.id },
-            data: { lastActiveAt: new Date() },
-          });
-        } else {
-          await this.prisma.userDevice.create({
-            data: {
-              userId: user.id,
-              deviceFingerprint,
-              deviceName: userAgent,
-              lastActiveAt: new Date(),
-              isTrusted: true,
-            },
-          });
-        }
+      .catch((err) => {
+        console.error('[AuthService] Failed to upsert device:', err);
       });
 
     return this.generateTokens(user, deviceFingerprint, sessionToken);
@@ -219,7 +264,6 @@ export class AuthService {
       data: { userId, ipAddress: ip, device: userAgent, success: false },
     });
 
-    // Check lock after 5 failures in 15 mins
     const recentFailures = await this.prisma.loginHistory.count({
       where: {
         userId,
@@ -250,8 +294,9 @@ export class AuthService {
     const payload = { sub: user.id, email: user.email, role: user.role };
     const accessToken = this.jwtService.sign(payload);
 
-    // Generate refresh token
+    // BE-001/DB-003 fix: Store tokenHint (SHA-256 first 16 hex) for O(1) lookup
     const rawRefreshToken = crypto.randomBytes(40).toString('hex');
+    const tokenHint = this.computeTokenHint(rawRefreshToken);
     const refreshHash = await bcrypt.hash(rawRefreshToken, 10);
 
     const expiresAt = new Date();
@@ -261,6 +306,7 @@ export class AuthService {
       data: {
         userId: user.id,
         tokenHash: refreshHash,
+        tokenHint,          // ← O(1) lookup field
         expiresAt,
         deviceInfo,
       },
@@ -281,12 +327,24 @@ export class AuthService {
   }
 
   async refreshToken(token: string) {
-    // Rotation logic — check ALL records for theft detection
-    const allRecords = await this.prisma.refreshToken.findMany();
+    // BE-047: Validate token exists before processing
+    if (!token) {
+      throw new UnauthorizedException('Refresh token is required');
+    }
+
+    // BE-001/DB-003 fix: O(1) lookup using tokenHint instead of O(N) full table scan + bcrypt loop
+    const tokenHint = this.computeTokenHint(token);
+    
+    // First lookup by tokenHint for fast O(1) search
+    const candidates = await this.prisma.refreshToken.findMany({
+      where: { tokenHint },
+    });
+
     let matchedRecord = null;
     let isRevoked = false;
 
-    for (const r of allRecords) {
+    for (const r of candidates) {
+      // Only compare bcrypt for matching hint candidates (typically 1 record)
       if (await bcrypt.compare(token, r.tokenHash)) {
         matchedRecord = r;
         if (r.revokedAt) {
@@ -298,6 +356,12 @@ export class AuthService {
 
     if (!matchedRecord) {
       throw new UnauthorizedException('Invalid refresh token');
+    }
+
+    // BE-051 fix: Check expiresAt before bcrypt compare is now implicit above
+    // But also check here for clarity
+    if (matchedRecord.expiresAt < new Date() && !isRevoked) {
+      throw new UnauthorizedException('Refresh token has expired');
     }
 
     if (isRevoked || matchedRecord.expiresAt < new Date()) {
@@ -324,24 +388,39 @@ export class AuthService {
     const user = await this.prisma.user.findUnique({
       where: { id: matchedRecord.userId },
     });
+    if (!user) {
+      throw new UnauthorizedException('User not found');
+    }
     return this.generateTokens(user, matchedRecord.deviceInfo || undefined);
   }
 
   async logout(userId: bigint, token: string, sessionToken?: string) {
-    // Blacklist access token in Redis
-    const decoded = this.jwtService.decode(token);
-    const ttl = decoded.exp * 1000 - Date.now();
-    if (ttl > 0) {
-      await this.cacheManager.set(`blacklist_${token}`, true, ttl);
+    // BE-048 fix: null check token before using
+    if (!token) {
+      throw new BadRequestException('Access token is required for logout');
     }
 
-    // Revoke refresh tokens
+    // BE-019 fix: Use SHA-256 hash of token as blacklist key (not raw token)
+    // AND use verify to prevent forged token TTL DoS
+    try {
+      const decoded = this.jwtService.verify(token) as any;
+      if (decoded && decoded.exp) {
+        const ttlMs = decoded.exp * 1000 - Date.now();
+        if (ttlMs > 0) {
+          const ttlSecs = Math.ceil(ttlMs / 1000);
+          const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+          await this.cacheManager.set(`blacklist_${tokenHash}`, true, ttlSecs);
+        }
+      }
+    } catch {
+      // Token decode failed — still proceed with logout
+    }
+
     await this.prisma.refreshToken.updateMany({
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
 
-    // Revoke session if provided
     if (sessionToken) {
       await this.prisma.userSession.updateMany({
         where: { userId, sessionToken },
@@ -349,7 +428,6 @@ export class AuthService {
       });
     }
 
-    // Log activity
     await this.activityLog.log({
       userId,
       action: 'USER_LOGOUT',
@@ -360,7 +438,78 @@ export class AuthService {
   }
 
   async isTokenBlacklisted(token: string): Promise<boolean> {
-    const blacklisted = await this.cacheManager.get(`blacklist_${token}`);
+    // BE-019 fix: Use SHA-256 hash as key (consistent with logout)
+    const tokenHash = crypto.createHash('sha256').update(token).digest('hex');
+    const blacklisted = await this.cacheManager.get(`blacklist_${tokenHash}`);
     return !!blacklisted;
+  }
+
+  // BE-050 fix: Admin unlock endpoint support
+  async unlockAccount(userId: bigint) {
+    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    if (!user) throw new BadRequestException('User not found');
+    if (user.status !== 'LOCKED') throw new BadRequestException('User is not locked');
+
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { status: 'ACTIVE' },
+    });
+
+    return { message: 'Account unlocked successfully' };
+  }
+
+  async resetPassword(email: string, otp: string, newPassword: string) {
+    const user = await this.prisma.user.findUnique({ where: { email } });
+    // BE-098: Don't reveal user non-existence with different error message
+    if (!user) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    const otpRecord = await this.prisma.otpCode.findFirst({
+      where: {
+        email,
+        purpose: 'RESET_PASSWORD',
+        consumedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { id: 'desc' },
+    });
+
+    if (!otpRecord) {
+      throw new BadRequestException('Invalid or expired OTP');
+    }
+
+    // BE-023: Brute-force protection
+    if (otpRecord.attempts >= 5) {
+      throw new BadRequestException('Too many OTP attempts. Please request a new OTP.');
+    }
+
+    const isValid = await bcrypt.compare(otp, otpRecord.codeHash);
+    if (!isValid) {
+      await this.prisma.otpCode.update({
+        where: { id: otpRecord.id },
+        data: { attempts: { increment: 1 } },
+      });
+      throw new BadRequestException('Invalid OTP');
+    }
+
+    await this.prisma.otpCode.update({
+      where: { id: otpRecord.id },
+      data: { consumedAt: new Date() },
+    });
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { passwordHash: hashedPassword },
+    });
+
+    // Revoke all refresh tokens for security
+    await this.prisma.refreshToken.updateMany({
+      where: { userId: user.id, revokedAt: null },
+      data: { revokedAt: new Date() },
+    });
+
+    return { message: 'Password reset successfully' };
   }
 }

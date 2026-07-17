@@ -21,8 +21,11 @@ export class PaymentController {
   @ApiBearerAuth()
   @Post(':bookingId/initiate')
   @ApiOperation({ summary: 'Initiate VNPay payment' })
-  async initiatePayment(@Param('bookingId') bookingId: string) {
-    return this.paymentService.initiatePayment(BigInt(bookingId));
+  async initiatePayment(
+    @Param('bookingId') bookingId: string,
+    @CurrentUser() user: any,
+  ) {
+    return this.paymentService.initiatePayment(BigInt(bookingId), user.id);
   }
 
   // Webhook VNPay callback - no AuthGuard required

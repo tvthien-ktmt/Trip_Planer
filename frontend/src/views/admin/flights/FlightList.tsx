@@ -15,9 +15,15 @@ export default function FlightList() {
   ];
 
   const handleDelete = () => {
-    if (window.confirm("CẢNH BÁO: Bạn có chắc chắn muốn xóa chuyến bay này? Hành động này không thể hoàn tác.")) {
-      toast.success("Đã xóa chuyến bay thành công");
-    }
+    toast.warning("CẢNH BÁO: Bạn có chắc chắn muốn xóa chuyến bay này? Hành động này không thể hoàn tác.", {
+      action: {
+        label: 'Đồng ý',
+        onClick: () => {
+          toast.success("Đã xóa chuyến bay thành công");
+        }
+      },
+      cancel: { label: 'Hủy', onClick: () => {} }
+    });
   };
 
   return (

@@ -1,5 +1,6 @@
 'use client';
 import { useState, useRef, useCallback } from 'react';
+import { toast } from 'sonner';
 import { UploadCloud, X, File, Image as ImageIcon } from 'lucide-react';
 
 interface FileUploadProps {
@@ -43,7 +44,7 @@ export function FileUpload({ onFileSelect, accept = 'image/*,application/pdf', m
 
   const processFile = (file: File) => {
     if (file.size > maxSizeMB * 1024 * 1024) {
-      alert(`File quá lớn. Vui lòng chọn file dưới ${maxSizeMB}MB.`);
+      toast.error(`File quá lớn. Vui lòng chọn file dưới ${maxSizeMB}MB.`);
       return;
     }
     setSelectedFile(file);

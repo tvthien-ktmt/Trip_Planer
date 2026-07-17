@@ -30,14 +30,19 @@ export class ReviewService {
       });
       hasCompletedBooking = !!booking;
     } else {
+      // BE-031 fix: Map flight strictly
       const booking = await this.prisma.booking.findFirst({
         where: {
           userId,
           status: 'COMPLETED',
           type: 'FLIGHT',
+          passengers: {
+            some: {
+              seat: { flightId: reviewableId }
+            }
+          }
         },
       });
-      // In reality, map flight strictly, here we just check type
       hasCompletedBooking = !!booking;
     }
 
@@ -89,7 +94,43 @@ export class ReviewService {
   }
 
   async upvoteReview(reviewId: bigint, userId: bigint) {
-    // Ideally check if user already voted. We will just increment for demo.
+    // BE-032 fix: Prevent same user from upvoting multiple times
+    // Check if this user already has an active upvote recorded
+    const review = await this.prisma.review.findUnique({
+      where: { id: reviewId },
+    });
+    if (!review) throw new NotFoundException('Review not found');
+
+    // Use a simple string-based tracking approach: store user IDs in a JSON field
+    // If schema doesn't have ReviewVote table, we leverage uniqueVoters field
+    // Check existing voters list (stored as serialized JSON in comment or use a Prisma raw query)
+    // Since schema has no ReviewVote table, we prevent double-upvote by checking if userId is already noted
+    // Practical approach: Use the existing Prisma schema and a separate tracking record
+    // For now, we'll use a raw approach - track upvoters with a dedicated unique check
+    
+    // Check if user already upvoted (via BookingItem or via direct check on a field we control)
+    // As a pragmatic fix without schema change: use Redis-style cache key check
+    // Since we don't have Redis access here, use a database lookup via ActivityLog as indicator
+    const existingVote = await this.prisma.activityLog.findFirst({
+      where: {
+        userId,
+        action: `REVIEW_UPVOTE_${reviewId.toString()}`,
+      },
+    });
+
+    if (existingVote) {
+      throw new BadRequestException('You have already upvoted this review');
+    }
+
+    // Record the upvote in activity log to prevent duplicates
+    await this.prisma.activityLog.create({
+      data: {
+        userId,
+        action: `REVIEW_UPVOTE_${reviewId.toString()}`,
+        description: `Upvoted review #${reviewId.toString()}`,
+      },
+    });
+
     return this.prisma.review.update({
       where: { id: reviewId },
       data: { helpfulCount: { increment: 1 } },

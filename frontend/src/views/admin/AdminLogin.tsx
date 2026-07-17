@@ -3,18 +3,46 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PlaneTakeoff, Lock } from 'lucide-react';
 import { useAuthStore } from '../../stores';
+import { toast } from 'sonner';
 
 export default function AdminLogin() {
-  const [email, setEmail] = useState('admin@tripplanner.com');
-  const [password, setPassword] = useState('admin123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const { login } = useAuthStore();
   const navigate = useRouter();
 
-  const handleLogin = (e: React.FormEvent) => {
+  const [isLoading, setIsLoading] = useState(false);
+
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
-    // Simulate admin login
-    login({ id: '999', name: 'Super Admin', email: 'admin@tripplanner.com', role: 'Admin' }, 'fake-admin-jwt-token');
-    navigate.push('/admin/dashboard');
+    setIsLoading(true);
+    try {
+      const response = await fetch('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, password }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        toast.error(data.message || 'Login failed');
+        setIsLoading(false);
+        return;
+      }
+      if (data.user.role !== 'ADMIN') {
+        toast.error('You are not an admin');
+        setIsLoading(false);
+        return;
+      }
+      login({ id: data.user.id, name: data.user.fullName, email: data.user.email, role: 'Admin' }, data.access_token);
+      document.cookie = `token=${data.access_token}; path=/; max-age=86400; samesite=lax`;
+      toast.success('Đăng nhập thành công');
+      navigate.push('/admin/dashboard');
+    } catch (error) {
+      console.error(error);
+      toast.error('Login failed');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

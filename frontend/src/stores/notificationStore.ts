@@ -23,7 +23,7 @@ export const useNotificationStore = create<NotificationState>((set) => ({
     notifications: [
       {
         ...notif,
-        id: `notif-${Date.now()}`,
+        id: `notif-${crypto.randomUUID()}`,
         isRead: false,
         createdAt: Date.now(),
       },

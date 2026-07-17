@@ -3,11 +3,20 @@ import { PrismaService } from '../../prisma/prisma.service';
 import { InjectQueue } from '@nestjs/bullmq';
 import { Queue } from 'bullmq';
 
+// BE-061 fix: Map template codes to actual job names that EmailProcessor handles
+const TEMPLATE_TO_JOB: Record<string, string> = {
+  'VERIFY_EMAIL': 'send-verify-email',
+  'BOOKING_CONFIRMATION': 'send-booking-confirmation',
+  'INVOICE': 'send-invoice',
+  'REFUND_RESULT': 'send-refund-result',
+  'PASSWORD_RESET': 'send-password-reset',
+};
+
 @Injectable()
 export class NotificationService {
   constructor(
     private prisma: PrismaService,
-    @InjectQueue('email') private emailQueue: Queue, // Placeholder for BullMQ queue
+    @InjectQueue('email') private emailQueue: Queue,
   ) {}
 
   async sendNotification(
@@ -17,8 +26,6 @@ export class NotificationService {
     body: string,
   ) {
     if (userId === null) {
-      // Broadcast logic, save one generic record or save N records.
-      // Here we just save one generic record that frontend queries if they want global announcements
       return this.prisma.notification.create({
         data: { title, body, type },
       });
@@ -34,7 +41,12 @@ export class NotificationService {
     templateCode: string,
     payload: any,
   ) {
-    // Enqueue to BullMQ for async dispatch
-    await this.emailQueue.add('send-email', { toEmail, templateCode, payload });
+    // BE-061 fix: Map templateCode to actual job name that EmailProcessor handles
+    const jobName = TEMPLATE_TO_JOB[templateCode];
+    if (!jobName) {
+      console.warn(`[NotificationService] Unknown template code: ${templateCode}. Skipping email dispatch.`);
+      return;
+    }
+    await this.emailQueue.add(jobName, { to: toEmail, ...payload });
   }
 }

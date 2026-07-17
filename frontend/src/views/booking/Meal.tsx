@@ -61,7 +61,7 @@ export default function Meal() {
           Quay lại
         </button>
         <button 
-          onClick={() => navigate.push('/booking/add-ons')}
+          onClick={() => navigate.push('/booking/addons')}
           className="px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold"
         >
           Tiếp tục

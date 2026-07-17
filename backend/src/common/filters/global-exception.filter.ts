@@ -21,8 +21,26 @@ export class GlobalExceptionFilter implements ExceptionFilter {
       status = exception.getStatus();
       const res = exception.getResponse();
       message = typeof res === 'string' ? res : (res as any).message || res;
+    } else if (exception && (exception as any).code && (exception as any).clientVersion) {
+      // BE-028 fix: Catch Prisma errors explicitly instead of relying on instanceOf
+      const prismaError = exception as any;
+      if (prismaError.code === 'P2002') {
+        status = HttpStatus.CONFLICT;
+        message = 'Unique constraint failed. The record already exists.';
+      } else if (prismaError.code === 'P2025') {
+        status = HttpStatus.NOT_FOUND;
+        message = 'Record not found.';
+      } else {
+        status = HttpStatus.BAD_REQUEST;
+        message = 'Database operation failed.';
+      }
     } else if (exception instanceof Error) {
-      message = exception.message;
+      // BE-027 fix: Mask internal error messages in production
+      if (process.env.NODE_ENV === 'production') {
+        message = 'Internal server error';
+      } else {
+        message = exception.message;
+      }
     }
 
     // Standardized response format

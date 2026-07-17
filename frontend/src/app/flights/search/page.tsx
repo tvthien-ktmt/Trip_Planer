@@ -2,7 +2,7 @@
 import dynamic from 'next/dynamic';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 
-const PageComponent = dynamic(() => import('@/views/public/flights/SearchFlight'), { ssr: false });
+const PageComponent = dynamic(() => import('@/views/public/flights/SearchFlight'));
 
 export default function Page() {
   return (

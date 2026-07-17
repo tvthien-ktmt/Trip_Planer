@@ -49,7 +49,7 @@ export class SessionService {
   /**
    * Get all active sessions for a user (for "My Devices" page).
    */
-  async getUserSessions(userId: bigint) {
+  async getUserSessions(userId: bigint, currentSessionToken?: string) {
     const sessions = await this.prisma.userSession.findMany({
       where: {
         userId,
@@ -67,7 +67,7 @@ export class SessionService {
       location: session.location,
       lastActiveAt: session.lastActiveAt,
       createdAt: session.createdAt,
-      isCurrent: false, // Will be set by controller based on current token
+      isCurrent: currentSessionToken ? session.sessionToken === currentSessionToken : false,
     }));
   }
 

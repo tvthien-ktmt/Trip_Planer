@@ -162,7 +162,7 @@ export default function SeatSelection() {
       </div>
 
       <div className="flex justify-between mt-8">
-        <Button variant="secondary" onClick={() => navigate.push("/booking/passenger-info")}>
+        <Button variant="secondary" onClick={() => navigate.push("/booking/passenger")}>
           Quay lại
         </Button>
         <Button variant="primary" onClick={() => navigate.push("/booking/baggage")}>

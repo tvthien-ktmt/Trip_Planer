@@ -51,7 +51,7 @@ export const BookStepsSection = () => {
                         <Icon className="w-5 h-5 text-white" strokeWidth={2} />
                       </div>
                       {idx < steps.length - 1 && (
-                        <RouteLine variant="timeline" className="flex-1 mt-2" color={steps[idx + 1].color} />
+                        <RouteLine variant="timeline" className="flex-1 mt-2" color={steps[idx + 1]?.color} />
                       )}
                     </div>
                     <div className="pb-8">

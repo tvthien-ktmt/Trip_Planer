@@ -50,7 +50,11 @@ async function runTest() {
     add: async () => {}
   } as unknown as Queue;
 
-  const bookingService = new BookingService(prisma as any, fakeQueue);
+  const fakeMembershipService = {
+    awardPoints: async () => {}
+  } as any;
+
+  const bookingService = new BookingService(prisma as any, fakeQueue, fakeMembershipService);
   
   const booking = await bookingService.createDraftBooking(user.id, 'FLIGHT');
 

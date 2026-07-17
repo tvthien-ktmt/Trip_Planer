@@ -1,6 +1,36 @@
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { TourService } from './tour.service';
 import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
+import { IsIn, IsNumberString, IsOptional, IsString } from 'class-validator';
+import { DestinationType } from '@prisma/client';
+
+class GetToursDto {
+  @IsString()
+  @IsOptional()
+  region?: string;
+
+  @IsString()
+  @IsOptional()
+  @IsIn([DestinationType.INTERNATIONAL, DestinationType.VIETNAM])
+  type?: string;
+
+  @IsNumberString()
+  @IsOptional()
+  page?: string;
+
+  @IsNumberString()
+  @IsOptional()
+  limit?: string;
+
+  @IsNumberString()
+  @IsOptional()
+  minRating?: string;
+
+  @IsString()
+  @IsOptional()
+  @IsIn(['price_asc', 'price_desc', 'rating_desc'])
+  sortBy?: string;
+}
 
 @ApiTags('Tour')
 @Controller('api')
@@ -9,27 +39,14 @@ export class TourController {
 
   @Get('tours')
   @ApiOperation({ summary: 'List all tours with pagination and filters' })
-  @ApiQuery({ name: 'region', required: false })
-  @ApiQuery({ name: 'type', required: false })
-  @ApiQuery({ name: 'page', required: false })
-  @ApiQuery({ name: 'limit', required: false })
-  @ApiQuery({ name: 'minRating', required: false })
-  @ApiQuery({ name: 'sortBy', required: false })
-  async getTours(
-    @Query('region') region?: string,
-    @Query('type') type?: string,
-    @Query('page') page?: string,
-    @Query('limit') limit?: string,
-    @Query('minRating') minRating?: string,
-    @Query('sortBy') sortBy?: string,
-  ) {
+  async getTours(@Query() query: GetToursDto) {
     return this.tourService.getTours(
-      region,
-      type,
-      page ? Number(page) : 1,
-      limit ? Number(limit) : 10,
-      minRating ? Number(minRating) : undefined,
-      sortBy,
+      query.region,
+      query.type,
+      query.page ? Number(query.page) : 1,
+      query.limit ? Number(query.limit) : 10,
+      query.minRating ? Number(query.minRating) : undefined,
+      query.sortBy,
     );
   }
 

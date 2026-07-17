@@ -12,9 +12,15 @@ export default function PromoList() {
   ];
 
   const handleDelete = () => {
-    if(window.confirm('Bạn có chắc chắn muốn xóa khuyến mãi này?')) {
-      toast.success('Đã xóa khuyến mãi thành công');
-    }
+    toast.warning('Bạn có chắc chắn muốn xóa khuyến mãi này?', {
+      action: {
+        label: 'Đồng ý',
+        onClick: () => {
+          toast.success('Đã xóa khuyến mãi thành công');
+        }
+      },
+      cancel: { label: 'Hủy', onClick: () => {} }
+    });
   };
 
   return (

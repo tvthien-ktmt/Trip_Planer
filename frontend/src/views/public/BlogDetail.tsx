@@ -3,6 +3,7 @@ import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Calendar, User, Clock, ArrowLeft, Share2, Heart } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import DOMPurify from 'isomorphic-dompurify';
 
 export default function BlogDetail() {
   const params = useParams();
@@ -95,7 +96,7 @@ export default function BlogDetail() {
             prose-a:text-[var(--color-ocean-600)] prose-a:no-underline hover:prose-a:underline
             prose-img:rounded-[var(--radius-radius-md)] prose-img:shadow-md
             prose-ul:text-[var(--text-secondary)] prose-li:marker:text-[var(--color-ocean-600)]"
-          dangerouslySetInnerHTML={{ __html: post.content }} 
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(post.content) }} 
         />
         
         <div className="mt-16 pt-8 border-t border-[var(--border-main)] text-center">

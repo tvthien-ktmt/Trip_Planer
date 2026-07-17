@@ -78,7 +78,7 @@ export default function BookingDetail() {
             <XCircle className="w-6 h-6 text-red-600 mb-2" />
             <span className="font-medium text-gray-900 dark:text-white">Yêu cầu hủy vé</span>
           </button>
-          <button onClick={() => navigate.push(`/user/refunds/${id}`)} className="flex flex-col items-center justify-center p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
+          <button onClick={() => toast.info('Tính năng hoàn vé đang được phát triển')} className="flex flex-col items-center justify-center p-4 border border-gray-200 dark:border-gray-700 rounded-xl hover:bg-gray-50 dark:hover:bg-gray-700 transition-colors">
             <Clock className="w-6 h-6 text-orange-600 mb-2" />
             <span className="font-medium text-gray-900 dark:text-white">Tiến độ hoàn tiền</span>
           </button>

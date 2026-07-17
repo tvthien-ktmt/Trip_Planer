@@ -52,6 +52,8 @@ export const Modal: React.FC<ModalProps> = ({
       const firstEl = focusableElements[0];
       const lastEl = focusableElements[focusableElements.length - 1];
 
+      if (!firstEl || !lastEl) return;
+
       if (e.shiftKey) {
         if (document.activeElement === firstEl) { e.preventDefault(); lastEl.focus(); }
       } else {

@@ -21,30 +21,37 @@ export const LoginModal: React.FC = () => {
     setIsLoading(true);
 
     try {
-      // Simulate API call
-      await new Promise((resolve) => setTimeout(resolve, 800));
+      const response = await fetch('http://localhost:3000/api/auth/login', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email, password }),
+      });
 
-      // Validate mock credentials
-      if (
-        !(email === 'user@gmail.com' && password === '123456') &&
-        !(email === 'admin@gmail.com' && password === '123456')
-      ) {
-        toast.error('Email hoặc mật khẩu không đúng!');
+      const data = await response.json();
+
+      if (!response.ok) {
+        toast.error(data.message || 'Đăng nhập thất bại!');
         setIsLoading(false);
         return;
       }
 
-      // Mock successful login
-      const mockUser: import('../../types').User = {
-        id: 'user-1',
-        name: 'Nguyễn Văn A',
-        email: email,
-        phone: '0123456789',
-        role: email === 'admin@gmail.com' ? 'Admin' : 'User',
-        avatar: 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop'
+      // FE-005 fix: login with real token and user data
+      const realUser: import('../../types').User = {
+        id: data.user.id,
+        name: data.user.fullName,
+        email: data.user.email,
+        phone: '', // Mocking phone since not returned in login
+        role: data.user.role === 'ADMIN' ? 'Admin' : 'User',
+        avatar: data.user.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop'
       };
 
-      login(mockUser, 'mock-token-12345');
+      login(realUser, data.access_token);
+      
+      // Store token in cookies for Next.js middleware
+      document.cookie = `token=${data.access_token}; path=/; max-age=86400; samesite=lax`;
+
       toast.success('Đăng nhập thành công!');
       setLoginModalOpen(false);
     } catch (error) {
@@ -129,7 +136,14 @@ export const LoginModal: React.FC = () => {
           </form>
           
           <div className="mt-6 text-center text-sm text-gray-500 dark:text-gray-400">
-            Dùng thử: <span className="font-semibold">user@gmail.com</span> / <span className="font-semibold">123456</span>
+            Chưa có tài khoản?{' '}
+            <button
+              type="button"
+              onClick={() => setLoginModalOpen(false)}
+              className="font-semibold text-blue-600 hover:underline"
+            >
+              Đăng ký ngay
+            </button>
           </div>
         </div>
       </div>

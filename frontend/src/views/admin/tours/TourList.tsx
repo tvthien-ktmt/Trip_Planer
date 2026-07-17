@@ -12,9 +12,15 @@ export default function TourList() {
   ];
 
   const handleDelete = () => {
-    if(window.confirm('Bạn có chắc chắn muốn xóa tour này?')) {
-      toast.success('Đã xóa tour thành công');
-    }
+    toast.warning('Bạn có chắc chắn muốn xóa tour này?', {
+      action: {
+        label: 'Đồng ý',
+        onClick: () => {
+          toast.success('Đã xóa tour thành công');
+        }
+      },
+      cancel: { label: 'Hủy', onClick: () => {} }
+    });
   };
 
   return (

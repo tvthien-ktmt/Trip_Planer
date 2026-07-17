@@ -70,27 +70,29 @@ export class BlogService {
 
     const { tagIds, categoryId, ...postData } = dto;
 
-    // Update tags if provided
-    if (tagIds !== undefined) {
-      await this.prisma.blogPostTag.deleteMany({ where: { postId: id } });
-    }
+    // BE-056 fix: Wrap in transaction
+    const updated = await this.prisma.$transaction(async (tx) => {
+      if (tagIds !== undefined) {
+        await tx.blogPostTag.deleteMany({ where: { postId: id } });
+      }
 
-    const updated = await this.prisma.blogPost.update({
-      where: { id },
-      data: {
-        ...postData,
-        categoryId: categoryId ? BigInt(categoryId) : undefined,
-        tags: tagIds
-          ? {
-              create: tagIds.map((tagId) => ({
-                tagId: BigInt(tagId),
-              })),
-            }
-          : undefined,
-      },
-      include: {
-        tags: { include: { tag: true } },
-      },
+      return tx.blogPost.update({
+        where: { id },
+        data: {
+          ...postData,
+          categoryId: categoryId ? BigInt(categoryId) : undefined,
+          tags: tagIds
+            ? {
+                create: tagIds.map((tagId) => ({
+                  tagId: BigInt(tagId),
+                })),
+              }
+            : undefined,
+        },
+        include: {
+          tags: { include: { tag: true } },
+        },
+      });
     });
 
     return this.formatPost(updated);

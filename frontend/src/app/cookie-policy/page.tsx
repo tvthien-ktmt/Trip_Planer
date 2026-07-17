@@ -2,7 +2,7 @@
 import dynamic from 'next/dynamic';
 import { PublicLayout } from '@/components/layout/PublicLayout';
 
-const PageComponent = dynamic(() => import('@/views/public/CookiePolicy'), { ssr: false });
+const PageComponent = dynamic(() => import('@/views/public/CookiePolicy'));
 
 export default function Page() {
   return (

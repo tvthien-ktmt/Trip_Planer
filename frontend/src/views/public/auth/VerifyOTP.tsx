@@ -29,17 +29,22 @@ export default function VerifyOTP() {
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (otp.join('').length < 6) {
       toast.error('Vui lòng nhập đủ 6 số OTP');
       return;
     }
     setIsLoading(true);
-    setTimeout(() => {
+    try {
+      const otpCode = otp.join('');
+      // FE-004 fix: Navigate to correct path without /auth/ prefix
+      navigate.push(`/reset-password?email=${encodeURIComponent(email)}&otp=${otpCode}`);
+    } catch {
+      toast.error('Có lỗi xảy ra. Vui lòng thử lại.');
+    } finally {
       setIsLoading(false);
-      navigate.push(`/auth/reset-password?email=${encodeURIComponent(email)}`);
-    }, 1000);
+    }
   };
 
   return (

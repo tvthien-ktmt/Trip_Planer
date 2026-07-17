@@ -9,11 +9,13 @@ export class CryptoService {
   private ivLength = 16;
 
   constructor(private configService: ConfigService) {
-    const key =
-      this.configService.get<string>('APP_SECRET') ||
-      'default_secret_key_needs_32_bytes_!';
+    const key = this.configService.get<string>('APP_SECRET');
+    if (!key) {
+      throw new Error('[FATAL] APP_SECRET environment variable is not set. Application startup aborted for security.');
+    }
+    const salt = this.configService.get<string>('APP_SALT') || crypto.randomBytes(16).toString('hex');
     // Ensure key is 32 bytes
-    this.secretKey = crypto.scryptSync(key, 'salt', 32);
+    this.secretKey = crypto.scryptSync(key, salt, 32);
   }
 
   encrypt(text: string): string {

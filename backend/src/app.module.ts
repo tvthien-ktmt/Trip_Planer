@@ -22,9 +22,21 @@ import { BlogModule } from './modules/blog/blog.module';
 import { UploadModule } from './modules/upload/upload.module';
 import * as redisStore from 'cache-manager-ioredis';
 import * as Joi from 'joi';
+import { LoggerModule } from 'nestjs-pino';
+import { v4 as uuidv4 } from 'uuid';
 
 @Module({
   imports: [
+    LoggerModule.forRoot({
+      pinoHttp: {
+        genReqId: (req) => {
+          return req.headers['x-correlation-id'] || uuidv4();
+        },
+        transport: process.env.NODE_ENV !== 'production'
+          ? { target: 'pino-pretty', options: { colorize: true } }
+          : undefined,
+      },
+    }),
     ConfigModule.forRoot({
       isGlobal: true,
       validationSchema: Joi.object({

@@ -77,7 +77,7 @@ export class FlightService {
       return 0;
     });
 
-    await this.cacheManager.set(cacheKey, sortedFlights, 60000); // cache for 60s
+    await this.cacheManager.set(cacheKey, sortedFlights, 60); // cache for 60s
     return sortedFlights;
   }
 

@@ -45,7 +45,7 @@ export default function TripDetail() {
     }
     const totalPrice = (pax.adults * tour.price) + (pax.children * tour.price * 0.7);
     addItem({
-      id: `cart-${Date.now()}`,
+      id: `cart-${crypto.randomUUID()}`,
       tourId: tour.id,
       tourTitle: tour.title,
       tourImage: tour.images[0],
@@ -150,7 +150,7 @@ export default function TripDetail() {
 
             {activeTab === 'itinerary' && (
               <div className="space-y-6 relative border-l-2 border-blue-200 dark:border-blue-900 ml-4">
-                {tour.itinerary.map((day) => (
+                {tour.itinerary?.map((day: any) => (
                   <div key={day.day} className="relative pl-8 pb-8 last:pb-0">
                     <div className="absolute -left-[9px] top-0 w-4 h-4 bg-blue-600 rounded-full ring-4 ring-white dark:ring-gray-950" />
                     <div className="text-sm font-bold text-blue-600 mb-1">Ngày {day.day}</div>
@@ -186,7 +186,7 @@ export default function TripDetail() {
                     Viết đánh giá
                   </button>
                 </div>
-                {reviews?.map(review => (
+                {reviews?.map((review: any) => (
                   <div key={review.id} className="border-b border-gray-100 dark:border-gray-800 pb-6 mb-6 last:border-0">
                     <div className="flex items-center justify-between mb-3">
                       <div className="flex items-center gap-3">
@@ -206,7 +206,7 @@ export default function TripDetail() {
 
             {activeTab === 'policy' && (
               <ul className="list-disc pl-5 space-y-3 text-gray-600 dark:text-gray-300">
-                {tour.policies.map((p, i) => <li key={i}>{p}</li>)}
+                {tour.policies?.map((p: any, i: number) => <li key={i}>{p}</li>)}
               </ul>
             )}
           </div>

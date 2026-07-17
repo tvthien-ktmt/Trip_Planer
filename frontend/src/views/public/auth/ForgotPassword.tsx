@@ -10,14 +10,28 @@ export default function ForgotPassword() {
   const [isLoading, setIsLoading] = useState(false);
   const navigate = useRouter();
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const response = await fetch('http://localhost:3000/api/auth/send-otp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, purpose: 'RESET_PASSWORD' }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        toast.error(data.message || 'Có lỗi xảy ra');
+        return;
+      }
       toast.success('Mã OTP đã được gửi đến email của bạn');
-      navigate.push(`/auth/verify-otp?email=${encodeURIComponent(email)}`);
-    }, 1000);
+      // FE-004 fix: Navigate to correct path without /auth/ prefix
+      navigate.push(`/verify-otp?email=${encodeURIComponent(email)}`);
+    } catch {
+      toast.error('Không thể kết nối đến máy chủ');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

@@ -1,5 +1,6 @@
 'use client';
 import { useEffect } from 'react';
+import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useBookingFlowStore } from '../../stores';
 import { Check } from 'lucide-react';
@@ -18,10 +19,10 @@ export default function FareClass() {
 
   const handleNext = () => {
     if (!outboundFareClass) {
-      alert('Vui lòng chọn hạng vé');
+      toast.error('Vui lòng chọn hạng vé');
       return;
     }
-    navigate.push('/booking/passenger-info');
+    navigate.push('/booking/passenger');
   };
 
   const fares = [
