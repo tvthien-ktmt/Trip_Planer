@@ -1,12 +1,14 @@
 'use client';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { useAuthStore } from '../../stores';
+import { useAuthStore, useUIStore } from '../../stores';
 import { Header } from '../../components/layout/Header';
 import { Footer } from '../../components/layout/Footer';
+import { UserSidebar } from '../../components/layout/UserSidebar';
 
 export default function UserLayout({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuthStore();
+  const { theme } = useUIStore();
   const router = useRouter();
   const [mounted, setMounted] = useState(false);
 
@@ -25,10 +27,13 @@ export default function UserLayout({ children }: { children: React.ReactNode }) 
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className={`min-h-screen flex flex-col ${theme === 'dark' ? 'dark bg-gray-950' : 'bg-gray-50'}`}>
       <Header />
-      <main className="flex-1 bg-gray-50 dark:bg-gray-900">
-        {children}
+      <main className="flex-1 flex py-8 max-w-7xl mx-auto w-full px-4 gap-8">
+        <UserSidebar />
+        <div className="flex-1 min-w-0">
+          {children}
+        </div>
       </main>
       <Footer />
     </div>

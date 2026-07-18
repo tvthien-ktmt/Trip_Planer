@@ -16,6 +16,12 @@ export default function QueryProvider({ children }: { children: React.ReactNode 
     },
   }));
 
+  useEffect(() => {
+    import('../stores').then(({ useAuthStore }) => {
+      useAuthStore.getState().hydrateFromCookie();
+    });
+  }, []);
+
   return (
     <QueryClientProvider client={queryClient}>
       {children}

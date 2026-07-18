@@ -4,6 +4,8 @@ import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
+import { useSearchParams } from 'next/navigation';
+
 export default function ResetPassword() {
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -11,19 +13,36 @@ export default function ResetPassword() {
   const [isLoading, setIsLoading] = useState(false);
   
   const navigate = useRouter();
+  const searchParams = useSearchParams();
+  const email = searchParams?.get('email') || '';
+  const otp = searchParams?.get('otp') || '';
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (password !== confirmPassword) {
       toast.error('Mật khẩu không khớp!');
       return;
     }
     setIsLoading(true);
-    setTimeout(() => {
-      setIsLoading(false);
+    try {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+      const response = await fetch(`${apiUrl}/auth/reset-password`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ email, otp, newPassword: password }),
+      });
+      const data = await response.json();
+      if (!response.ok) {
+        toast.error(data.message || 'Đặt lại mật khẩu thất bại');
+        return;
+      }
       toast.success('Đặt lại mật khẩu thành công!');
       navigate.push('/login');
-    }, 1000);
+    } catch {
+      toast.error('Không thể kết nối đến máy chủ');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

@@ -75,7 +75,7 @@ export default function BookingHistory() {
               <p className="text-xl font-bold text-blue-600">{booking.price.toLocaleString()} ₫</p>
               <div className="flex gap-2">
                 {booking.status === 'upcoming' && (
-                  <button onClick={() => navigate.push(`/booking/ticket/${booking.id}`)} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Tải vé">
+                  <button onClick={() => navigate.push(`/booking/${booking.id}/ticket`)} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/20 rounded-lg transition-colors" title="Tải vé">
                     <FileText className="w-5 h-5" />
                   </button>
                 )}

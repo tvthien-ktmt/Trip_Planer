@@ -1,5 +1,5 @@
 import { render, screen } from '@testing-library/react';
-import Home from '../src/app/page';
+import Home from '../src/app/(public)/page';
 
 jest.mock('react-i18next', () => ({
   useTranslation: () => ({ t: (key: string) => key }),
@@ -29,6 +29,6 @@ describe('Home Page', () => {
       </QueryClientProvider>
     );
     // Just a basic check that the page renders
-    expect(document.body).toBeInTheDocument();
+    expect(document.body).toBeTruthy();
   });
 });

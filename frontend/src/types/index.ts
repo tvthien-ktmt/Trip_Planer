@@ -116,7 +116,7 @@ export interface User {
   status?: string;
   createdAt?: string;
   membershipTier?: string;
-  role: 'User' | 'Admin' | 'Staff';
+  role: 'USER' | 'ADMIN' | 'STAFF';
 }
 
 export interface BlogPost {

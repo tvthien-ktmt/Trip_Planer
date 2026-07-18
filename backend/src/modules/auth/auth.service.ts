@@ -48,7 +48,7 @@ export class AuthService {
     const hash = await bcrypt.hash(otp, 10);
 
     // DB-005 fix: Store email in OtpCode instead of userId=0
-    const userId = user ? user.id : BigInt(0);
+    const userId = user ? user.id : null;
 
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 5);
@@ -125,10 +125,14 @@ export class AuthService {
       throw new BadRequestException('Invalid OTP');
     }
 
-    await this.prisma.otpCode.update({
-      where: { id: otpRecord.id },
+    const result = await this.prisma.otpCode.updateMany({
+      where: { id: otpRecord.id, consumedAt: null },
       data: { consumedAt: new Date() },
     });
+
+    if (result.count === 0) {
+      throw new BadRequestException('OTP has already been consumed');
+    }
 
     const hashedPassword = await bcrypt.hash(dto.password, 10);
     // BE-060 fix: Use correct default status (PENDING_VERIFICATION is schema default)
@@ -493,10 +497,14 @@ export class AuthService {
       throw new BadRequestException('Invalid OTP');
     }
 
-    await this.prisma.otpCode.update({
-      where: { id: otpRecord.id },
+    const result = await this.prisma.otpCode.updateMany({
+      where: { id: otpRecord.id, consumedAt: null },
       data: { consumedAt: new Date() },
     });
+
+    if (result.count === 0) {
+      throw new BadRequestException('OTP has already been consumed');
+    }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
     await this.prisma.user.update({

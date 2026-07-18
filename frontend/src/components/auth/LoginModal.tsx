@@ -2,6 +2,7 @@
 import { usePathname } from 'next/navigation';
 import React, { useState } from 'react';
 import { useAuthStore } from '../../stores';
+import { setAuthCookie } from '../../lib/auth';
 import { useRouter } from 'next/navigation';
 import { X, Mail, Lock } from 'lucide-react';
 import { toast } from 'sonner';
@@ -21,7 +22,8 @@ export const LoginModal: React.FC = () => {
     setIsLoading(true);
 
     try {
-      const response = await fetch('http://localhost:3000/api/auth/login', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+      const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -43,14 +45,14 @@ export const LoginModal: React.FC = () => {
         name: data.user.fullName,
         email: data.user.email,
         phone: '', // Mocking phone since not returned in login
-        role: data.user.role === 'ADMIN' ? 'Admin' : 'User',
+        role: data.user.role === 'ADMIN' ? 'ADMIN' : 'USER',
         avatar: data.user.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop'
       };
 
       login(realUser, data.access_token);
       
       // Store token in cookies for Next.js middleware
-      document.cookie = `token=${data.access_token}; path=/; max-age=86400; samesite=lax`;
+      setAuthCookie(data.access_token);
 
       toast.success('Đăng nhập thành công!');
       setLoginModalOpen(false);

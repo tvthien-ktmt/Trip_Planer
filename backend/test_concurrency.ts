@@ -64,22 +64,26 @@ async function runTest() {
   // 4. Simulate Concurrent Requests
   console.log('\n--- THỰC THI Promise.all 2 REQUEST ĐỒNG THỜI ---');
   
+  const passenger = await prisma.bookingPassenger.create({
+    data: { bookingId: booking.id, fullName: 'Test Pax' }
+  });
+
   // Cả 2 request đều thử lock cùng 1 ghế, truyền cùng 1 version hiện tại là 0
-  const req1 = bookingService.selectSeat(booking.id, seat.id, 0)
+  const req1 = bookingService.selectSeatForPassenger(booking.id, passenger.id, seat.id, 0)
     .then(() => 'Request 1: THÀNH CÔNG (Giữ ghế thành công)')
-    .catch(e => `Request 1: THẤT BẠI - Lỗi: ${e.message}`);
+    .catch((e: any) => `Request 1: THẤT BẠI - Lỗi: ${e.message}`);
     
-  const req2 = bookingService.selectSeat(booking.id, seat.id, 0)
+  const req2 = bookingService.selectSeatForPassenger(booking.id, passenger.id, seat.id, 0)
     .then(() => 'Request 2: THÀNH CÔNG (Giữ ghế thành công)')
-    .catch(e => `Request 2: THẤT BẠI - Lỗi: ${e.message}`);
+    .catch((e: any) => `Request 2: THẤT BẠI - Lỗi: ${e.message}`);
 
   const results = await Promise.all([req1, req2]);
   
   console.log('\n--- KẾT QUẢ TEST ---');
-  results.forEach(res => console.log(res));
+  results.forEach((res: any) => console.log(res));
 
-  const successCount = results.filter(r => r.includes('THÀNH CÔNG')).length;
-  const failCount = results.filter(r => r.includes('THẤT BẠI')).length;
+  const successCount = results.filter((r: any) => typeof r === 'string' && r.includes('THÀNH CÔNG')).length;
+  const failCount = results.filter((r: any) => typeof r === 'string' && r.includes('THẤT BẠI')).length;
 
   if (successCount === 1 && failCount === 1) {
     console.log('\n✅ TEST PASSED: Concurrency (Optimistic Locking) hoạt động hoàn hảo!');

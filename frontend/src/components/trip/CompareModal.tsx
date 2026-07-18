@@ -72,7 +72,7 @@ export const CompareModal = () => {
                   <button 
                     onClick={() => {
                       setCompareModalOpen(false);
-                      navigate.push(`/trip/${tour.id}`);
+                      navigate.push(`/tours/${tour.id}`);
                     }}
                     className="mt-6 w-full py-2.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-semibold rounded-xl transition-colors"
                   >

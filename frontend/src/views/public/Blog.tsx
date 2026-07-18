@@ -4,6 +4,7 @@ import { useBlogQuery } from '../../hooks/queries';
 import { Skeleton } from '../../components/common/Skeleton';
 import { Pagination } from '../../components/common/Pagination';
 import Link from 'next/link';
+import { BlogPost } from '../../types';
 
 import { Calendar, Clock, Search, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
@@ -16,7 +17,7 @@ export default function Blog() {
 
   const categories = ['All', 'Cuisine', 'Experience', 'Destination', 'Tips'];
 
-  const filteredBlogs = blogs?.filter((post: any) => {
+  const filteredBlogs = blogs?.filter((post: BlogPost) => {
     const matchSearch = post.title.toLowerCase().includes(search.toLowerCase()) || post.excerpt.toLowerCase().includes(search.toLowerCase());
     const matchCat = category === 'All' || post.category === category;
     return matchSearch && matchCat;
@@ -74,7 +75,7 @@ export default function Blog() {
         ) : (
           <>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-12">
-              {paginatedBlogs.map((post: any) => (
+              {paginatedBlogs.map((post: BlogPost) => (
                 <article key={post.id} className="bg-white dark:bg-gray-800 rounded-2xl overflow-hidden shadow-sm border border-gray-100 dark:border-gray-700 group flex flex-col cursor-pointer transition-shadow hover:shadow-md">
                   <div className="relative h-60 overflow-hidden">
                     <img 

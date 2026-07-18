@@ -1,5 +1,5 @@
 'use client';
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useMemo } from 'react';
 import { MapPin } from 'lucide-react';
 import { useAirportsQuery } from '../../hooks/queries/useFlightQueries';
 
@@ -37,11 +37,15 @@ export const AirportAutocomplete = ({ label, placeholder, value, onChange }: Air
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
 
-  const filteredAirports = airports.filter(a => 
-    a.city.toLowerCase().includes(searchTerm.toLowerCase()) || 
-    a.code.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    a.name.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const filteredAirports = useMemo(() => {
+    const term = searchTerm.toLowerCase();
+    if (!term) return airports;
+    return airports.filter(a => 
+      a.city.toLowerCase().includes(term) || 
+      a.code.toLowerCase().includes(term) ||
+      a.name.toLowerCase().includes(term)
+    );
+  }, [airports, searchTerm]);
 
   return (
     <div ref={wrapperRef} className="relative w-full">

@@ -91,44 +91,48 @@ async function main() {
 
   // Clean existing data in reverse dependency order
   console.log('🧹 Cleaning existing data...');
-  await prisma.activityLog.deleteMany();
-  await prisma.auditLog.deleteMany();
-  await prisma.notification.deleteMany();
-  await prisma.pointTransaction.deleteMany();
-  await prisma.userPoints.deleteMany();
-  await prisma.review.deleteMany();
-  await prisma.wishlist.deleteMany();
-  await prisma.voucherRedemption.deleteMany();
-  await prisma.refund.deleteMany();
-  await prisma.payment.deleteMany();
-  await prisma.bookingStatusHistory.deleteMany();
-  await prisma.bookingItem.deleteMany();
-  await prisma.bookingPassenger.deleteMany();
-  await prisma.booking.deleteMany();
-  await prisma.flightSeat.deleteMany();
-  await prisma.flightFareClass.deleteMany();
-  await prisma.flight.deleteMany();
-  await prisma.aircraft.deleteMany();
-  await prisma.airport.deleteMany();
-  await prisma.blogPostTag.deleteMany();
-  await prisma.blogPost.deleteMany();
-  await prisma.blogTag.deleteMany();
-  await prisma.blogCategory.deleteMany();
-  await prisma.tourImage.deleteMany();
-  await prisma.tourItinerary.deleteMany();
-  await prisma.tour.deleteMany();
-  await prisma.destination.deleteMany();
-  await prisma.voucher.deleteMany();
-  await prisma.membershipTier.deleteMany();
-  await prisma.rolePermission.deleteMany();
-  await prisma.permission.deleteMany();
-  await prisma.otpCode.deleteMany();
-  await prisma.userDevice.deleteMany();
-  await prisma.userSession.deleteMany();
-  await prisma.loginHistory.deleteMany();
-  await prisma.refreshToken.deleteMany();
-  await prisma.user.deleteMany();
-  console.log('✅ Cleaned existing data');
+  if (process.env.NODE_ENV !== 'production') {
+    await prisma.activityLog.deleteMany();
+    await prisma.auditLog.deleteMany();
+    await prisma.notification.deleteMany();
+    await prisma.pointTransaction.deleteMany();
+    await prisma.userPoints.deleteMany();
+    await prisma.review.deleteMany();
+    await prisma.wishlist.deleteMany();
+    await prisma.voucherRedemption.deleteMany();
+    await prisma.refund.deleteMany();
+    await prisma.payment.deleteMany();
+    await prisma.bookingStatusHistory.deleteMany();
+    await prisma.bookingItem.deleteMany();
+    await prisma.bookingPassenger.deleteMany();
+    await prisma.booking.deleteMany();
+    await prisma.flightSeat.deleteMany();
+    await prisma.flightFareClass.deleteMany();
+    await prisma.flight.deleteMany();
+    await prisma.aircraft.deleteMany();
+    await prisma.airport.deleteMany();
+    await prisma.blogPostTag.deleteMany();
+    await prisma.blogPost.deleteMany();
+    await prisma.blogTag.deleteMany();
+    await prisma.blogCategory.deleteMany();
+    await prisma.tourImage.deleteMany();
+    await prisma.tourItinerary.deleteMany();
+    await prisma.tour.deleteMany();
+    await prisma.destination.deleteMany();
+    await prisma.voucher.deleteMany();
+    await prisma.membershipTier.deleteMany();
+    await prisma.rolePermission.deleteMany();
+    await prisma.permission.deleteMany();
+    await prisma.otpCode.deleteMany();
+    await prisma.userDevice.deleteMany();
+    await prisma.userSession.deleteMany();
+    await prisma.loginHistory.deleteMany();
+    await prisma.refreshToken.deleteMany();
+    await prisma.user.deleteMany();
+    console.log('✅ Cleaned existing data');
+  } else {
+    console.log('⚠️ Skipping destructive deleteMany in production environment');
+  }
 
   // ===== 1. Permissions =====
   console.log('🔒 Seeding permissions...');
@@ -183,8 +187,10 @@ async function main() {
   const userPasswordHash = await bcrypt.hash('User@123', 10);
 
   // Create admin user
-  const adminUser = await prisma.user.create({
-    data: {
+  const adminUser = await prisma.user.upsert({
+    where: { email: 'admin@tripplanner.vn' },
+    update: {},
+    create: {
       email: 'admin@tripplanner.vn',
       passwordHash,
       fullName: 'Administrator',
@@ -196,8 +202,10 @@ async function main() {
   });
 
   // Create staff user
-  await prisma.user.create({
-    data: {
+  await prisma.user.upsert({
+    where: { email: 'staff@tripplanner.vn' },
+    update: {},
+    create: {
       email: 'staff@tripplanner.vn',
       passwordHash,
       fullName: 'Staff Member',
@@ -209,8 +217,10 @@ async function main() {
   });
 
   // Create demo user
-  const demoUser = await prisma.user.create({
-    data: {
+  const demoUser = await prisma.user.upsert({
+    where: { email: 'user@tripplanner.vn' },
+    update: {},
+    create: {
       email: 'user@tripplanner.vn',
       passwordHash: userPasswordHash,
       fullName: 'Nguyễn Văn Demo',

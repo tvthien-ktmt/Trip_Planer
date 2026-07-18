@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PlaneTakeoff, Lock } from 'lucide-react';
 import { useAuthStore } from '../../stores';
+import { setAuthCookie } from '../../lib/auth';
 import { toast } from 'sonner';
 
 export default function AdminLogin() {
@@ -17,7 +18,8 @@ export default function AdminLogin() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/auth/login', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+      const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -28,13 +30,13 @@ export default function AdminLogin() {
         setIsLoading(false);
         return;
       }
-      if (data.user.role !== 'ADMIN') {
-        toast.error('You are not an admin');
+      if (data.user.role !== 'ADMIN' && data.user.role !== 'STAFF') {
+        toast.error('You are not authorized for admin access');
         setIsLoading(false);
         return;
       }
-      login({ id: data.user.id, name: data.user.fullName, email: data.user.email, role: 'Admin' }, data.access_token);
-      document.cookie = `token=${data.access_token}; path=/; max-age=86400; samesite=lax`;
+      login({ id: data.user.id, name: data.user.fullName, email: data.user.email, role: data.user.role }, data.access_token);
+      setAuthCookie(data.access_token);
       toast.success('Đăng nhập thành công');
       navigate.push('/admin/dashboard');
     } catch (error) {

@@ -242,7 +242,7 @@ export default function Tours() {
                       ) : undefined}
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <Link href={`/trip/${tour.id}`} className="flex-1">
+                        <Link href={`/tours/${tour.id}`} className="flex-1">
                           <h3 className="font-display font-semibold text-[var(--text-primary)] hover:text-[var(--color-ocean-600)] transition-custom"
                             style={{ fontSize: "var(--text-heading)" }}>
                             {tour.title}

@@ -1,12 +1,33 @@
 import { Users, Ticket, Plane, DollarSign, TrendingUp, TrendingDown } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Skeleton } from "../../components/common/Skeleton";
+
+const iconMap: Record<string, any> = {
+  DollarSign, Ticket, Users, Plane
+};
 
 export default function Dashboard() {
-  const stats = [
-    { title: "Doanh thu hôm nay", value: "124,500,000 ₫", trend: "+15%", isUp: true, icon: DollarSign, iconBg: "rgba(20,20,22,0.10)", iconColor: "var(--color-ocean-900)" },
-    { title: "Vé đã bán", value: "432", trend: "+5%", isUp: true, icon: Ticket, iconBg: "rgba(59,113,254,0.12)", iconColor: "var(--color-ocean-600)" },
-    { title: "Khách hàng mới", value: "128", trend: "-2%", isUp: false, icon: Users, iconBg: "rgba(232,163,61,0.12)", iconColor: "var(--color-lantern-500)" },
-    { title: "Chuyến bay hoạt động", value: "45", trend: "0%", isUp: true, icon: Plane, iconBg: "rgba(240,101,74,0.10)", iconColor: "var(--color-coral-500)" },
-  ];
+  const [data, setData] = useState<{ stats: { icon: string; title: string; value: string; isUp: boolean; trend: string; iconBg: string; iconColor: string; }[]; revenueChart: number[]; recentBookings: { code: string; desc: string; status: string; }[]; } | null>(null);
+
+  useEffect(() => {
+    fetch('/api/admin/dashboard')
+      .then(res => res.json())
+      .then(setData)
+      .catch(console.error);
+  }, []);
+
+  if (!data) {
+    return (
+      <div className="space-y-8">
+        <Skeleton className="h-10 w-48" />
+        <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-[var(--spacing-space-5)]">
+          {[1,2,3,4].map(i => <Skeleton key={i} className="h-32 rounded-xl" />)}
+        </div>
+      </div>
+    );
+  }
+
+  const { stats, revenueChart, recentBookings } = data;
 
   return (
     <div className="space-y-8">
@@ -22,8 +43,8 @@ export default function Dashboard() {
       
       {/* KPI Cards */}
       <div className="grid md:grid-cols-2 xl:grid-cols-4 gap-[var(--spacing-space-5)]">
-        {stats.map((stat, i) => {
-          const Icon = stat.icon;
+        {stats.map((stat: { icon: string; title: string; value: string; isUp: boolean; trend: string; iconBg: string; iconColor: string; }, i: number) => {
+          const Icon = iconMap[stat.icon];
           return (
             <div key={i} className="rounded-[var(--radius-radius-md)] p-5"
               style={{ background: "var(--bg-surface)", border: "1px solid var(--border-main)", boxShadow: "var(--shadow-shadow-sm)" }}>
@@ -57,7 +78,7 @@ export default function Dashboard() {
             Biểu đồ doanh thu 7 ngày qua
           </h2>
           <div className="h-64 flex items-end justify-between gap-4">
-            {[40, 60, 45, 80, 50, 90, 75].map((val, i) => (
+            {revenueChart.map((val: number, i: number) => (
               <div key={i} className="w-full flex flex-col items-center gap-2 group cursor-pointer relative">
                 {/* Tooltip */}
                 <div className="absolute -top-10 opacity-0 group-hover:opacity-100 transition-opacity rounded-[var(--radius-radius-sm)] px-2 py-1 text-xs text-white pointer-events-none"
@@ -79,16 +100,16 @@ export default function Dashboard() {
             Đặt vé gần đây
           </h2>
           <div className="space-y-4">
-            {[1, 2, 3, 4, 5].map((i) => (
+            {recentBookings.map((b: { code: string; desc: string; status: string; }, i: number) => (
               <div key={i} className="flex justify-between items-center pb-4 last:border-0 last:pb-0"
                 style={{ borderBottom: "1px solid var(--border-main)" }}>
                 <div>
-                  <p className="font-utility font-bold text-[var(--text-primary)] text-sm mb-0.5">VN8A2{i}</p>
-                  <p className="text-[var(--text-secondary)] text-xs">Nguyễn Văn A – SGN ✈ HAN</p>
+                  <p className="font-utility font-bold text-[var(--text-primary)] text-sm mb-0.5">{b.code}</p>
+                  <p className="text-[var(--text-secondary)] text-xs">{b.desc}</p>
                 </div>
                 <span className="px-2 py-1 rounded-[6px] text-[10px] font-bold uppercase tracking-wider"
                   style={{ background: "var(--color-mist-50)", color: "var(--color-ocean-600)" }}>
-                  Thành công
+                  {b.status}
                 </span>
               </div>
             ))}

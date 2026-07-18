@@ -74,14 +74,28 @@ export function DataTable<T>({
               <ChevronLeft className="w-4 h-4" />
             </button>
             <div className="flex items-center gap-1">
-              {[...Array(totalPages)].map((_, i) => {
-                const page = i + 1;
-                // Simple pagination display logic
-                if (page === 1 || page === totalPages || (page >= currentPage - 1 && page <= currentPage + 1)) {
+              {(() => {
+                const pages: (number | string)[] = [];
+                if (totalPages <= 7) {
+                  for (let i = 1; i <= totalPages; i++) pages.push(i);
+                } else {
+                  if (currentPage <= 3) {
+                    pages.push(1, 2, 3, 4, '...', totalPages);
+                  } else if (currentPage >= totalPages - 2) {
+                    pages.push(1, '...', totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+                  } else {
+                    pages.push(1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages);
+                  }
+                }
+
+                return pages.map((page, index) => {
+                  if (page === '...') {
+                    return <span key={`ellipsis-${index}`} className="text-gray-400 px-2">...</span>;
+                  }
                   return (
                     <button
                       key={page}
-                      onClick={() => onPageChange(page)}
+                      onClick={() => onPageChange(page as number)}
                       className={`w-8 h-8 flex items-center justify-center rounded-lg text-sm font-medium transition-colors ${
                         currentPage === page 
                           ? 'bg-[var(--color-ocean-600)] text-white' 
@@ -91,12 +105,8 @@ export function DataTable<T>({
                       {page}
                     </button>
                   );
-                }
-                if (page === currentPage - 2 || page === currentPage + 2) {
-                  return <span key={page} className="text-gray-400">...</span>;
-                }
-                return null;
-              })}
+                });
+              })()}
             </div>
             <button 
               onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}

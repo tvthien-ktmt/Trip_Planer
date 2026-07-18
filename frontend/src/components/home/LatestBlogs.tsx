@@ -3,6 +3,7 @@ import { Skeleton } from '../common/Skeleton';
 import Link from 'next/link';
 
 import { Calendar, Clock, ArrowRight } from 'lucide-react';
+import { BlogPost } from '../../types';
 import { format } from 'date-fns';
 
 export const LatestBlogs = () => {
@@ -34,7 +35,7 @@ export const LatestBlogs = () => {
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
-        {latest.map((post: any) => (
+        {latest.map((post: BlogPost) => (
           <article key={post.id} className="group cursor-pointer">
             <div className="relative h-56 rounded-2xl overflow-hidden mb-4 shadow-sm">
               <img 

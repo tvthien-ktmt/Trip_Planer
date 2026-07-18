@@ -1,0 +1,427 @@
+Hướng dẫn tạo ảnh QR Code và nhúng vào website
+Tạo ảnh QR Code giúp khách hàng có thể dùng app ngân hàng để quét mã và chuyển khoản.
+
+Ảnh QR Code là gì?
+Ảnh QR Code chứa toàn bộ thông tin về ngân hàng, số tài khoản thụ hưởng, số tiền chuyển khoản, nội dung chuyển khoản.
+
+Khi khách hàng dùng App ngân hàng để quét mã, ứng dụng sẽ tự điền toàn bộ thông tin chuyển khoản, rất tiện lợi.
+
+Như vậy khi tích hợp QR Code, khách hàng sẽ không cần phải điền bằng tay các thông tin chuyển khoản. Trải nghiệm khách hàng sẽ tốt hơn, việc chuyển khoản thanh toán cũng nhanh hơn.
+
+SePay cung cấp công cụ để giúp bạn tạo ảnh QR Code động tại qr.sepay.vn. Bạn có thể nhập thông tin trên giao diện để tạo nhanh, hoặc dùng cấu trúc link bên dưới để tự sinh ảnh QR Code và nhúng vào website, ứng dụng.
+
+Cấu trúc link nhúng:
+
+https://vietqr.app/img?acc=SO_TAI_KHOAN&bank=NGAN_HANG&amount=SO_TIEN&des=NOI_DUNG&template=TEMPLATE&download=DOWNLOAD&showinfo=SHOW_INFO&fullacc=FULLACC&holder=TEN_CHU_TK&store=TEN_CUA_HANG
+
+Bạn chỉ cần thay thế các biến trên đường dẫn thành nội dung phù hợp. Chỉ acc và bank là bắt buộc, các tham số còn lại có thể bỏ qua.
+
+Tham số	Bắt buộc	Mô tả
+acc	Có	Số tài khoản ngân hàng (hoặc số tài khoản ảo VA tùy quy tắc của ngân hàng). Chỉ nhập chữ và số, tối đa 19 ký tự.
+bank	Có	Ngân hàng, nhận theo một trong các field trong danh sách banks.json: code, bin, short_name hoặc alias (ví dụ: VCB, 970436 hoặc Vietcombank).
+amount	Không	Số tiền chuyển khoản (VND). Chỉ nhập số, bỏ trống để khách tự nhập khi quét mã.
+des	Không	Nội dung chuyển khoản. Chỉ nhập chữ, số, không dấu.
+template	Không	Kiểu hiển thị ảnh QR Code: để trống, compact, qronly hoặc standee. Xem chi tiết tại bảng kiểu hiển thị bên dưới.
+download	Không	Đặt true để trình duyệt tải ảnh QR về máy thay vì hiển thị trực tiếp (inline).
+showinfo	Không	Đặt true để hiển thị thông tin tài khoản kèm ảnh QR. Không áp dụng cho template=standee vì standee đã hiển thị sẵn thông tin.
+fullacc	Không	Đặt true để hiển thị đầy đủ số tài khoản trên ảnh. Chỉ có tác dụng khi showinfo=true.
+holder	Không	Tên chủ tài khoản hiển thị trên ảnh. Nhập chữ không dấu, viết hoa, ký tự ASCII, tối đa 80 ký tự.
+store	Không	Tên cửa hàng hoặc doanh nghiệp hiển thị trên ảnh. Tối đa 80 ký tự.
+Lưu ý: Các số tài khoản trong những ví dụ bên dưới là dữ liệu mẫu, không có thật.
+
+Ví dụ 1: Link QR đầy đủ thông tin số tiền và nội dung:
+https://vietqr.app/img?acc=0000000000&bank=Vietcombank&amount=100000&des=thanh%20toan%20don%20hang
+
+Ảnh QR Code sẽ hiển thị là
+
+
+Ví dụ 2: Link QR chỉ có thông tin số tài khoản và ngân hàng:
+https://vietqr.app/img?acc=0000000000&bank=Vietcombank
+
+Ảnh QR Code sẽ hiển thị là
+
+
+Tùy chỉnh kiểu hiển thị với tham số template
+Tham số template cho phép bạn chọn kiểu hiển thị ảnh QR Code phù hợp với từng mục đích sử dụng.
+
+Giá trị	Kiểu hiển thị
+(bỏ trống)	Ảnh QR chuẩn kèm logo VietQR.
+compact	Bố cục gọn, có kèm logo NAPAS/VietQR, logo ngân hàng và logo SePay. Phù hợp nhúng vào trang thanh toán.
+qronly	Chỉ ảnh QR, không kèm khung và logo.
+standee	Bố cục standee, dùng để in tại quầy điểm bán.
+Ví dụ 3: Kiểu compact (bố cục gọn, kèm logo NAPAS/VietQR, logo ngân hàng và logo SePay):
+https://vietqr.app/img?acc=0000000000&bank=Vietcombank&amount=100000&des=thanh%20toan%20don%20hang&template=compact
+
+
+Ví dụ 4: Kiểu qronly (chỉ ảnh QR, không kèm khung và logo):
+https://vietqr.app/img?acc=0000000000&bank=Vietcombank&amount=100000&des=thanh%20toan%20don%20hang&template=qronly
+
+
+Ví dụ 5: Kiểu standee (bố cục standee để in tại quầy điểm bán), kết hợp tên chủ tài khoản và tên cửa hàng:
+https://vietqr.app/img?acc=0000000000&bank=Vietcombank&template=standee&holder=NGUYEN%20VAN%20A&store=CUA%20HANG%20ABC
+
+
+Hiển thị thông tin tài khoản trên ảnh QR
+Đặt showinfo=true để in kèm tên chủ tài khoản, tên cửa hàng và số tài khoản lên ảnh QR. Bạn có thể kết hợp với holder và store để bổ sung thông tin hiển thị.
+
+Lưu ý về phụ thuộc giữa các tham số:
+
+fullacc chỉ có tác dụng khi showinfo=true. Mặc định số tài khoản được ẩn bớt, đặt thêm fullacc=true để hiển thị đầy đủ.
+showinfo không áp dụng cho template=standee, vì mẫu standee đã hiển thị sẵn thông tin tài khoản.
+Ví dụ 6: Hiển thị thông tin tài khoản kèm tên chủ tài khoản và tên cửa hàng:
+https://vietqr.app/img?acc=0000000000&bank=Vietcombank&amount=100000&des=thanh%20toan%20don%20hang&showinfo=true&holder=NGUYEN%20VAN%20A&store=CUA%20HANG%20ABC
+
+
+Nhúng mã QR Code vào website
+Bạn có thể nhúng ảnh QR Code bằng thẻ img như sau:
+
+<img src='https://vietqr.app/img?acc=SO_TAI_KHOAN&bank=NGAN_HANG&amount=SO_TIEN&des=NOI_DUNG' alt='QR thanh toán VietQR' />
+Hoặc nhúng bằng cú pháp Markdown:
+
+![QR thanh toán VietQR](https://vietqr.app/img?acc=SO_TAI_KHOAN&bank=NGAN_HANG&amount=SO_TIEN&des=NOI_DUNG)
+Bạn có thể bổ sung thêm các tham số template, showinfo, holder, store, fullacc vào đường dẫn để tùy chỉnh ảnh QR Code theo nhu cầu. Ví dụ nhúng bằng thẻ img với kiểu gọn và tên cửa hàng:
+
+<img src='https://vietqr.app/img?acc=0000000000&bank=Vietcombank&amount=100000&des=thanh%20toan%20don%20hang&template=compact&showinfo=true&store=SePay%20Store' alt='Mã QR thanh toán SePay' />
+
+
+API Giao dịch
+Giao dịch là các giao dịch ngân hàng đã phát sinh. Bạn có thể truy vấn thông tin chi tiết một giao dịch, danh sách giao dịch, đếm số lượng giao dịch.
+
+Bạn có thể làm gì với Giao dịch? 
+SePay cho phép bạn thực hiện những truy vấn sau với Giao dịch:
+
+GET https://my.sepay.vn/userapi/transactions/details/{transaction_id}
+Lấy chi tiết một giao dịch
+GET https://my.sepay.vn/userapi/transactions/list
+Lấy danh sách giao dịch
+GET https://my.sepay.vn/userapi/transactions/count
+Đếm số lượng giao dịch
+Lấy chi tiết một giao dịch 
+GET https://my.sepay.vn/userapi/transactions/details/{transaction_id}
+
+Lấy chi tiết thông tin một giao dịch theo ID
+
+Ví dụ:
+
+GET https://my.sepay.vn/userapi/transactions/details/48673
+HTTP/1.1 200 OK
+----
+{
+    "status": 200,
+    "error": null,
+    "messages": {
+        "success": true
+    },
+    "transaction": {
+        "id": "48673",
+        "transaction_date": "2023-05-04 11:59:47",
+        "account_number": "0071000888888",
+        "sub_account": "VCB0011ABC002",
+        "amount_in": "19689000.00",
+        "amount_out": "0.00",
+        "accumulated": "1128200335.00",
+        "code": null,
+        "transaction_content": "TRAN THIEN THAO chuyen tien...",
+        "reference_number": "731086.040523.120001",
+        "bank_brand_name": "Vietcombank",
+        "bank_account_id": "19"
+    }
+}
+
+Lấy danh sách giao dịch 
+GET https://my.sepay.vn/userapi/transactions/list
+
+Lấy danh sách giao dịch. Bạn có thể lọc theo các tham số sau:
+
+account_number	Số tài khoản ngân hàng
+transaction_date_min	Hiển thị các giao dịch được tạo sau thời gian (>=). Định dạng yyyy-mm-dd
+transaction_date_max	Hiển thị các giao dịch được tạo trước thời gian (<=). Định dạng yyyy-mm-dd
+since_id	Hiển thị giao dịch từ ID chỉ định (>=)
+limit	Giới hạn giao dịch trả về. Tối đa 5000, mặc định là 5000.
+reference_number	Lấy giao dịch theo mã tham chiếu
+amount_in	Lấy giao dịch tiền vào khớp với
+amount_out	Lấy giao dịch tiền ra khớp với
+Lấy tất cả giao dịch. Mặc định chỉ hiển thị 5000 giao dịch gần nhất.
+
+GET https://my.sepay.vn/userapi/transactions/list
+HTTP/1.1 200 OK
+----
+{
+    "status": 200,
+    "error": null,
+    "messages": {
+        "success": true
+    },
+    "transactions": [
+        {
+            "id": "49682",
+            "bank_brand_name": "Vietcombank",
+            "account_number": "0071000888888",
+            "transaction_date": "2023-05-05 19:59:48",
+            "amount_out": "0.00",
+            "amount_in": "18067000.00",
+            "accumulated": "1200541768.00",
+            "transaction_content": "DUONG THUY ANH chuyen tien...",
+            "reference_number": "677760.050523.080001",
+            "code": null,
+            "sub_account": "VCB0011ABC004",
+            "bank_account_id": "19"
+        },
+        {
+            "id": "49582",
+            "bank_brand_name": "Vietcombank",
+            "account_number": "0071000899999",
+            "transaction_date": "2023-05-05 17:59:47",
+            "amount_out": "0.00",
+            "amount_in": "13646000.00",
+            "accumulated": "1384635819.00",
+            "transaction_content": "DINH NHU TOAN chuyen tien...",
+            "reference_number": "171158.050523.060001",
+            "code": null,
+            "sub_account": "VCB0011ABC002",
+            "bank_account_id": "18"
+        },
+        {
+            "id": "49465",
+            "bank_brand_name": "Vietcombank",
+            "account_number": "0071000888888",
+            "transaction_date": "2023-05-05 15:59:47",
+            "amount_out": "0.00",
+            "amount_in": "21782000.00",
+            "accumulated": "1182474768.00",
+            "transaction_content": "DUONG THUY ANH chuyen tien...",
+            "reference_number": "989543.050523.040001",
+            "code": null,
+            "sub_account": "VCB0011ABC001",
+            "bank_account_id": "19"
+        }
+    ]
+}
+
+Lấy giao dịch sau 08h00 ngày 30/04/2023 và trước 12h00 ngày 02/05/2023.
+
+GET https://my.sepay.vn/userapi/transactions/list?transaction_date_min=2023-04-30 08:00:00&transaction_date_max=2023-05-02 12:00:00
+Lấy giao dịch từ ID 49050 trở về sau.
+
+GET https://my.sepay.vn/userapi/transactions/list?since_id=49050
+Lấy 20 giao dịch gần đây của tài khoản ngân hàng số 0071000888888.
+
+GET https://my.sepay.vn/userapi/transactions/list?account_number=0071000888888&limit=20
+Lọc giao dịch có mã tham chiếu là 171158.050523.060001
+
+GET https://my.sepay.vn/userapi/transactions/list?reference_number=171158.050523.060001
+Lấy các giao dịch với số tiền chuyển vào là 16,848,000
+
+GET https://my.sepay.vn/userapi/transactions/list?amount_in=16848000
+Đếm số lượng giao dịch 
+GET https://my.sepay.vn/userapi/transactions/count
+
+Đếm số lượng giao dịch. Bạn có thể lọc theo các tham số sau:
+
+account_number	Số tài khoản ngân hàng
+transaction_date_min	Hiển thị các giao dịch được tạo sau thời gian (>=). Định dạng yyyy-mm-dd
+transaction_date_max	Hiển thị các giao dịch được tạo trước thời gian (<=). Định dạng yyyy-mm-dd
+since_id	Hiển thị giao dịch từ ID chỉ định (>=)
+Đếm tổng số lượng giao dịch.
+
+GET https://my.sepay.vn/userapi/transactions/count
+HTTP/1.1 200 OK
+----
+{
+    "status": 200,
+    "error": null,
+    "messages": {
+        "success": true
+    },
+    "count_transactions": 2322
+}
+
+Đếm tổng số lượng giao dịch của tài khoản ngân hàng 0071000888888.
+
+GET https://my.sepay.vn/userapi/transactions/count?account_number=0071000888888
+Đọc tiếp: API Tài khoản ngân hang
+
+
+API Tài khoản ngân hàng
+API tài khoản ngân hàng giúp lấy danh sách các tài khoản ngân hàng đã được thêm vào SePay. Truy vấn thông tin chi tiết từng tài khoản, số dư từng tài khoản.
+
+Bạn có thể làm gì với API này? 
+SePay cho phép bạn thực hiện những truy vấn sau với Tài khoản ngân hàng:
+
+GET https://my.sepay.vn/userapi/bankaccounts/details/{bank_account_id}
+Lấy chi tiết một tài khoản ngân hàng
+GET https://my.sepay.vn/userapi/bankaccounts/list
+Lấy danh sách các tài khoản ngân hàng
+GET https://my.sepay.vn/userapi/bankaccounts/count
+Đếm số lượng tài khoản ngân hàng
+Lấy chi tiết một tài khoản ngân hàng 
+GET https://my.sepay.vn/userapi/bankaccounts/details/{bank_account_id}
+
+Lấy chi tiết thông tin một tài khoản ngân hàng theo ID
+
+Ví dụ:
+
+GET https://my.sepay.vn/userapi/bankaccounts/details/18
+HTTP/1.1 200 OK
+----
+{
+    "status": 200,
+    "error": null,
+    "messages": {
+        "success": true
+    },
+    "bankaccount":{
+        "id": "18",                                // ID của tài khoản ngân hàng trên SePay
+        "account_holder_name": "NGUYEN VAN A",     // Tên chủ tài khoản
+        "account_number": "0071000899999",         // Số tài khoản
+        "accumulated": "2625076186.00",            // Số dư (VND)
+        "last_transaction": "2023-08-09 07:59:48", // Giao dịch gần nhất lúc
+        "label": "",                                // Tên gợi nhớ
+        "active": "1",                              // 1 là tài khoản đang hoạt động, 0 là tạm khóa
+        "created_at": "2023-02-12 20:05:47",        // Ngày tạo tài khoản trên SePay
+        "bank_short_name": "Vietcombank",           // Tên ngắn của ngân hàng (short_name)
+        "bank_full_name": "Ngân hàng TMCP Ngoại Thương Việt Nam", // Tên đầy đủ của ngân hàng
+        "bank_bin": "970436",                       // BIN code của ngân hàng
+        "bank_code": "VCB"                          // Bank code của ngân hàng
+    }
+}
+
+Lấy danh sách tài khoản ngân hàng 
+GET https://my.sepay.vn/userapi/bankaccounts/list
+
+Lấy danh sách tài khoản ngân hàng. Bạn có thể lọc theo các tham số sau:
+
+short_name	Tên ngân hàng, tương ứng với trường short_name tại đây
+last_transaction_date_min	Lọc tài khoản có giao dịch gần nhất sau thời gian (>=). Định dạng yyyy-mm-dd
+last_transaction_date_max	Lọc tài khoản có giao dịch gần nhất trước thời gian (<=). Định dạng yyyy-mm-dd
+since_id	Hiển thị tài khoản ngân hàng từ ID chỉ định (>=)
+limit	Giới hạn tài khoản ngân hàng trả về. Mặc định là 100.
+accumulated_min	Lọc tài khoản ngân hàng có số dư lớn hơn hoặc bằng (>=)
+accumulated_max	Lọc tài khoản ngân hàng có số dư nhỏ hơn hoặc bằng (>=)
+Lấy tất cả tài khoản ngân hàng. Mặc định chỉ hiển thị 100 tài khoản ngân hàng được thêm gần nhất.
+
+GET https://my.sepay.vn/userapi/bankaccounts/list
+HTTP/1.1 200 OK
+----
+{
+    "status": 200,
+    "error": null,
+    "messages": {
+        "success": true
+    },
+    "bankaccounts":[
+    {
+        "id": "25",
+        "account_holder_name": "NGUYEN THI B",
+        "account_number": "102871015203",
+        "accumulated": "2525493.00",
+        "last_transaction": "2023-02-16 16:16:00",
+        "label": "",
+        "active": "1",
+        "created_at": "2023-02-16 15:57:26",
+        "bank_short_name": "VietinBank",
+        "bank_full_name": "Ngân hàng TMCP Công Thương Việt Nam",
+        "bank_bin": "970415",
+        "bank_code": "ICB"
+        },
+        {
+        "id": "24",
+        "account_holder_name": "NGUYEN VAN A",
+        "account_number": "084704070006848",
+        "accumulated": "551564.00",
+        "last_transaction": "2023-02-16 15:38:50",
+        "label": "",
+        "active": "1",
+        "created_at": "2023-02-16 15:33:46",
+        "bank_short_name": "HDBank",
+        "bank_full_name": "Ngân hàng TMCP Phát triển Thành phố Hồ Chí Minh",
+        "bank_bin": "970437",
+        "bank_code": "HDB"
+        },
+        {
+        "id": "21",
+        "account_holder_name": "TRAN VAN VIET",
+        "account_number": "105851038",
+        "accumulated": "46892169.00",
+        "last_transaction": "2023-04-21 15:25:47",
+        "label": "",
+        "active": "1",
+        "created_at": "2023-02-16 11:26:58",
+        "bank_short_name": "VPB",
+        "bank_full_name": "Ngân hàng TMCP Việt Nam Thịnh Vượng",
+        "bank_bin": "970432",
+        "bank_code": "VPB"
+        },
+        {
+        "id": "19",
+        "account_holder_name": "CONG TY TNHH DEMO",
+        "account_number": "0071000888888",
+        "accumulated": "1777283273.00",
+        "last_transaction": "2023-08-09 11:59:47",
+        "label": "Cty Demo",
+        "active": "1",
+        "created_at": "2023-02-12 21:09:49",
+        "bank_short_name": "Vietcombank",
+        "bank_full_name": "Ngân hàng TMCP Ngoại Thương Việt Nam",
+        "bank_bin": "970436",
+        "bank_code": "VCB"
+        },
+        {
+        "id": "18",
+        "account_holder_name": "NGUYEN VAN A",
+        "account_number": "0071000899999",
+        "accumulated": "2625076186.00",
+        "last_transaction": "2023-08-09 07:59:48",
+        "label": "",
+        "active": "1",
+        "created_at": "2023-02-12 20:05:47",
+        "bank_short_name": "Vietcombank",
+        "bank_full_name": "Ngân hàng TMCP Ngoại Thương Việt Nam",
+        "bank_bin": "970436",
+        "bank_code": "VCB"
+        }
+    ]
+}
+
+Lấy tài khoản ngân hàng có giao dịch sau 08h00 ngày 30/04/2023 và trước 12h00 ngày 02/05/2023.
+
+GET https://my.sepay.vn/userapi/bankaccounts/list?last_transaction_date_min=2023-04-30 08:00:00&last_transaction_date_max=2023-05-02 12:00:00
+Lấy tài khoản ngân hàng từ ID 20 trở về sau.
+
+GET https://my.sepay.vn/userapi/bankaccounts/list?since_id=20
+Lấy 20 tài khoản của ngân hàng Vietcombank.
+
+GET https://my.sepay.vn/userapi/bankaccounts/list?short_name=Vietcombank&limit=20
+Lọc tài khoản ngân hàng có số dư >= 1 VND
+
+GET https://my.sepay.vn/userapi/bankaccounts/list?accumulated_min=1
+Đếm số lượng tài khoản ngân hàng 
+GET https://my.sepay.vn/userapi/bankaccounts/count
+
+Đếm số lượng tài khoản ngân hàng. Bạn có thể lọc theo các tham số sau:
+
+short_name	Tên ngân hàng, tương ứng với trường short_name tại đây
+last_transaction_date_min	Lọc tài khoản có giao dịch gần nhất sau thời gian (>=). Định dạng yyyy-mm-dd
+last_transaction_date_max	Lọc tài khoản có giao dịch gần nhất trước thời gian (<=). Định dạng yyyy-mm-dd
+since_id	Hiển thị tài khoản ngân hàng từ ID chỉ định (>=)
+accumulated_min	Lọc tài khoản ngân hàng có số dư lớn hơn hoặc bằng (>=)
+accumulated_max	Lọc tài khoản ngân hàng có số dư nhỏ hơn hoặc bằng (>=)
+Đếm tổng số lượng tài khoản ngân hàng đang có.
+
+GET https://my.sepay.vn/userapi/bankaccounts/count
+HTTP/1.1 200 OK
+----
+{
+    "status": 200,
+    "error": null,
+    "messages": {
+        "success": true
+    },
+    "count_bankaccounts": 9
+}
+
+Đếm tổng số lượng tài khoản ngân hàng của tài khoản ngân hàng có số dư >=1.
+
+GET https://my.sepay.vn/userapi/bankaccounts/count?accumulated_min=1
+
+

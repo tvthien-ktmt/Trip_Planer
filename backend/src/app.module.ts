@@ -24,7 +24,8 @@ import * as redisStore from 'cache-manager-ioredis';
 import * as Joi from 'joi';
 import { LoggerModule } from 'nestjs-pino';
 import { v4 as uuidv4 } from 'uuid';
-
+import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
+import { APP_FILTER } from '@nestjs/core';
 @Module({
   imports: [
     LoggerModule.forRoot({
@@ -98,6 +99,10 @@ import { v4 as uuidv4 } from 'uuid';
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard, // Global rate limiter
+    },
+    {
+      provide: APP_FILTER,
+      useClass: GlobalExceptionFilter,
     },
   ],
 })

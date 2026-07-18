@@ -11,7 +11,7 @@ export default function FAQ() {
   const [search, setSearch] = useState('');
   const [openId, setOpenId] = useState<string | null>(null);
 
-  const filteredFaqs = faqs?.filter(f => f.question.toLowerCase().includes(search.toLowerCase()) || f.answer.toLowerCase().includes(search.toLowerCase())) || [];
+  const filteredFaqs = faqs?.filter((f: { question: string; answer: string }) => f.question.toLowerCase().includes(search.toLowerCase()) || f.answer.toLowerCase().includes(search.toLowerCase())) || [];
 
   return (
     <div className="bg-gray-50 dark:bg-gray-900 min-h-screen py-12">
@@ -40,7 +40,7 @@ export default function FAQ() {
               <div className="p-8 text-center text-gray-500">Không tìm thấy câu trả lời phù hợp.</div>
             ) : (
               <div className="divide-y divide-gray-100 dark:divide-gray-700">
-                {filteredFaqs.map(faq => (
+                {filteredFaqs.map((faq: { id: string; question: string; answer: string }) => (
                   <div key={faq.id}>
                     <button
                       onClick={() => setOpenId(openId === faq.id ? null : faq.id)}

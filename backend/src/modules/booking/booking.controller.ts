@@ -31,6 +31,10 @@ class CreateBookingDto {
 class SelectSeatDto {
   @IsString()
   @IsNotEmpty()
+  passengerId: string;
+
+  @IsString()
+  @IsNotEmpty()
   seatId: string;
 
   @IsNumber()
@@ -110,7 +114,7 @@ export class BookingController {
   }
 
   @Patch(':id/seats')
-  @ApiOperation({ summary: 'Select and lock seat' })
+  @ApiOperation({ summary: 'Select and lock seat for passenger' })
   async selectSeat(
     @Param('id') id: string,
     @Body() dto: SelectSeatDto,
@@ -118,7 +122,7 @@ export class BookingController {
   ) {
     // BE-008: Verify ownership before selecting seat
     await this.verifyOwnership(BigInt(id), user.id);
-    return this.bookingService.selectSeat(BigInt(id), BigInt(dto.seatId), dto.version);
+    return this.bookingService.selectSeatForPassenger(BigInt(id), BigInt(dto.passengerId), BigInt(dto.seatId), dto.version);
   }
 
   @Put(':id/passengers')

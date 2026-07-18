@@ -1,10 +1,9 @@
 import { useQuery } from '@tanstack/react-query';
-import { mockFaqs } from '../../mocks/data';
 
 const fetchFaqs = async () => {
-  return new Promise<typeof mockFaqs>((resolve) => {
-    setTimeout(() => resolve(mockFaqs), 300);
-  });
+  const res = await fetch('/api/faqs');
+  if (!res.ok) throw new Error('Failed to fetch FAQs');
+  return res.json();
 };
 
 export const useFaqQuery = () => {

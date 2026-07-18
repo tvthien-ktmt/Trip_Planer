@@ -7,7 +7,10 @@ import {
   Param,
   UseGuards,
   ParseIntPipe,
+  Inject,
 } from '@nestjs/common';
+import { CACHE_MANAGER } from '@nestjs/cache-manager';
+import type { Cache } from 'cache-manager';
 import {
   ApiTags,
   ApiOperation,
@@ -139,7 +142,10 @@ class CreatePermissionDto {
 @Roles('ADMIN')
 @ApiBearerAuth()
 export class RbacController {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    @Inject(CACHE_MANAGER) private cacheManager: Cache,
+  ) {}
 
   @Get('permissions')
   @ApiOperation({ summary: 'List all available permissions' })
@@ -179,7 +185,7 @@ export class RbacController {
   @Post('role-permissions')
   @ApiOperation({ summary: 'Assign a permission to a role' })
   async assignPermission(@Body() dto: AssignPermissionDto) {
-    return this.prisma.rolePermission.upsert({
+    const result = await this.prisma.rolePermission.upsert({
       where: {
         role_permissionId: {
           role: dto.role as any,
@@ -192,6 +198,8 @@ export class RbacController {
       },
       update: {},
     });
+    await this.cacheManager.del(`rbac_permissions_${dto.role}`);
+    return result;
   }
 
   @Delete('role-permissions/:role/:permissionId')
@@ -200,7 +208,7 @@ export class RbacController {
     @Param('role') role: string,
     @Param('permissionId', ParseIntPipe) permissionId: number,
   ) {
-    return this.prisma.rolePermission.delete({
+    const result = await this.prisma.rolePermission.delete({
       where: {
         role_permissionId: {
           role: role as any,
@@ -208,6 +216,8 @@ export class RbacController {
         },
       },
     });
+    await this.cacheManager.del(`rbac_permissions_${role}`);
+    return result;
   }
 
   @Post('seed-defaults')
@@ -259,6 +269,10 @@ export class RbacController {
       })),
       skipDuplicates: true,
     });
+
+    await this.cacheManager.del('rbac_permissions_ADMIN');
+    await this.cacheManager.del('rbac_permissions_STAFF');
+    await this.cacheManager.del('rbac_permissions_USER');
 
     return {
       success: true,

@@ -51,7 +51,7 @@ export default function Reservation() {
   const handleFinish = () => {
     clearCart();
     setSuccessModalOpen(false);
-    navigate.push('/settings'); // Chuyển đến lịch sử đặt chỗ (nằm trong settings)
+    navigate.push('/user/bookings'); // Chuyển đến lịch sử đặt chỗ
   };
 
   if (items.length === 0 && !isSuccessModalOpen) {

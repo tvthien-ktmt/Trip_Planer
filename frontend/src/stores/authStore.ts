@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { User } from '../types';
 import { persist, createJSONStorage } from 'zustand/middleware';
+import { clearAuthCookie, getAuthCookie } from '../lib/auth';
 
 interface AuthState {
   user: User | null;
@@ -10,18 +11,29 @@ interface AuthState {
   login: (user: User, token: string) => void;
   logout: () => void;
   setLoginModalOpen: (isOpen: boolean) => void;
+  hydrateFromCookie: () => void;
 }
 
 export const useAuthStore = create<AuthState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       user: null,
       token: null,
       isAuthenticated: false,
       isLoginModalOpen: false,
       login: (user, token) => set({ user, token, isAuthenticated: true, isLoginModalOpen: false }),
-      logout: () => set({ user: null, token: null, isAuthenticated: false }),
+      logout: () => {
+        clearAuthCookie();
+        fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
+        set({ user: null, token: null, isAuthenticated: false });
+      },
       setLoginModalOpen: (isOpen) => set({ isLoginModalOpen: isOpen }),
+      hydrateFromCookie: () => {
+        const token = getAuthCookie();
+        if (token && !get().token) {
+          set({ token, isAuthenticated: true });
+        }
+      },
     }),
     {
       name: 'auth-storage',

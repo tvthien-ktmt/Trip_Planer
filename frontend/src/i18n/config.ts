@@ -11,18 +11,24 @@ i18n
       vi: { translation: vi },
       en: { translation: en }
     },
-    lng: useUIStore.getState().language || 'vi',
+    lng: 'vi', // Fallback to 'vi', will be updated by client
     fallbackLng: 'vi',
     interpolation: {
       escapeValue: false
     }
   });
 
-// Subscribe to store changes to update language dynamically
-useUIStore.subscribe((state, prevState) => {
-  if (state.language !== prevState.language) {
-    i18n.changeLanguage(state.language);
+// Subscribe to store changes only on client
+if (typeof window !== 'undefined') {
+  const language = useUIStore.getState().language;
+  if (language) {
+    i18n.changeLanguage(language);
   }
-});
+  useUIStore.subscribe((state, prevState) => {
+    if (state.language !== prevState.language) {
+      i18n.changeLanguage(state.language);
+    }
+  });
+}
 
 export default i18n;

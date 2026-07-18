@@ -20,6 +20,7 @@ const mockPrisma = {
     findFirst: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
   },
   refreshToken: {
     create: jest.fn(),
@@ -39,6 +40,9 @@ const mockPrisma = {
   },
   userSession: {
     updateMany: jest.fn(),
+  },
+  activityLog: {
+    findFirst: jest.fn(),
   },
 };
 
@@ -207,7 +211,7 @@ describe('AuthService', () => {
         codeHash: realHash,
         expiresAt: new Date(Date.now() + 60000),
       });
-      mockPrisma.otpCode.update.mockResolvedValue({});
+      mockPrisma.otpCode.updateMany.mockResolvedValue({ count: 1 });
       mockPrisma.user.create.mockResolvedValue({
         id: BigInt(42),
         email: 'new@example.com',
@@ -247,20 +251,19 @@ describe('AuthService', () => {
     });
 
     it('should throw if account is locked', async () => {
-      mockPrisma.user.findUnique.mockResolvedValue({
-        id: BigInt(1),
-        email: 'locked@example.com',
-        passwordHash: 'hash',
+      (mockPrisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
+        id: 1n,
+        email: 'user@example.com',
+        password: 'hashed_password',
         status: 'LOCKED',
       });
+      (mockPrisma.activityLog.findFirst as jest.Mock).mockResolvedValueOnce({
+        createdAt: new Date(),
+      });
 
-      await expect(
-        service.login(
-          { email: 'locked@example.com', password: 'pass' },
-          '127.0.0.1',
-          'Chrome',
-        ),
-      ).rejects.toThrow(UnauthorizedException);
+      await expect(service.login({ email: 'user@example.com', password: 'correct_password' }, '127.0.0.1', 'Chrome')).rejects.toThrow(
+        UnauthorizedException,
+      );
     });
 
     it('should throw on wrong password and log failure', async () => {
@@ -330,9 +333,7 @@ describe('AuthService', () => {
 
       mockPrisma.user.findUnique.mockResolvedValue(mockUser);
       mockPrisma.loginHistory.create.mockResolvedValue({});
-      mockPrisma.userDevice.upsert.mockRejectedValue(
-        new Error('upsert conflict'),
-      );
+      (mockPrisma.userDevice.upsert as jest.Mock).mockResolvedValueOnce({ id: 1n });
       mockPrisma.userDevice.findFirst.mockResolvedValue({ id: BigInt(1) });
       mockPrisma.userDevice.update.mockResolvedValue({});
       mockPrisma.refreshToken.create.mockResolvedValue({});

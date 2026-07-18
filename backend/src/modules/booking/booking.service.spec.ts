@@ -3,6 +3,7 @@ import { BookingService } from './booking.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { getQueueToken } from '@nestjs/bullmq';
 import { ConflictException } from '@nestjs/common';
+import { MembershipService } from '../membership/membership.service';
 
 describe('BookingService', () => {
   let service: BookingService;
@@ -15,6 +16,7 @@ describe('BookingService', () => {
         {
           provide: PrismaService,
           useValue: {
+            $transaction: jest.fn(async (cb) => cb(prisma)),
             booking: {
               findUnique: jest
                 .fn()
@@ -23,12 +25,22 @@ describe('BookingService', () => {
             flightSeat: {
               updateMany: jest.fn(),
             },
+            bookingPassenger: {
+              findFirst: jest.fn().mockResolvedValue({ id: 1n, bookingId: 1n }),
+              update: jest.fn(),
+            },
           },
         },
         {
           provide: getQueueToken('booking'),
           useValue: {
             add: jest.fn(),
+          },
+        },
+        {
+          provide: MembershipService,
+          useValue: {
+            awardPoints: jest.fn().mockResolvedValue(undefined),
           },
         },
       ],
@@ -51,8 +63,8 @@ describe('BookingService', () => {
       const currentVersion = 0;
 
       // Execute concurrently using Promise.all to simulate race condition
-      const req1 = service.selectSeat(bookingId, seatId, currentVersion);
-      const req2 = service.selectSeat(bookingId, seatId, currentVersion);
+      const req1 = service.selectSeatForPassenger(bookingId, 1n, seatId, currentVersion);
+      const req2 = service.selectSeatForPassenger(bookingId, 1n, seatId, currentVersion);
 
       const results = await Promise.allSettled([req1, req2]);
 
@@ -61,7 +73,7 @@ describe('BookingService', () => {
       if (results[0].status === 'fulfilled') {
         expect(results[0].value).toEqual({
           success: true,
-          message: 'Ghế đã được giữ tạm thời',
+          message: 'Ghế đã được giữ tạm thời và gán cho hành khách',
         });
       }
 

@@ -13,7 +13,7 @@ export function middleware(request: NextRequest) {
   const token = request.cookies.get('token')?.value;
 
   // We decode the payload manually because the JWT secret might not be available in the Edge runtime
-  let user: any = null;
+  let user: { role: string; sub: string; email: string; iat: number; exp: number } | null = null;
   if (token) {
     try {
       const parts = token.split('.');
@@ -41,7 +41,9 @@ export function middleware(request: NextRequest) {
   const isUserPath = userPaths.some(path => pathname.startsWith(path));
   if (isUserPath) {
     if (!token || !user) {
-      return NextResponse.redirect(new URL('/auth/login', request.url));
+      const loginUrl = new URL('/login', request.url);
+      loginUrl.searchParams.set('redirect', pathname);
+      return NextResponse.redirect(loginUrl);
     }
   }
 

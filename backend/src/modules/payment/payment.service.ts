@@ -39,31 +39,47 @@ export class PaymentService {
       throw new BadRequestException('Payment already completed for this booking');
     }
 
-    // Transition booking to PENDING_PAYMENT before payment initiation (BE-090)
-    await this.bookingService.updateBookingStatus(bookingId, 'PENDING_PAYMENT', userId);
+    const { paymentUrl } = await this.prisma.$transaction(async (tx) => {
+      // Transition booking to PENDING_PAYMENT before payment initiation (BE-090)
+      const currentBooking = await tx.booking.findUnique({ where: { id: bookingId } });
+      if (currentBooking && this.bookingService.canTransition(currentBooking.status, 'PENDING_PAYMENT')) {
+        await tx.booking.update({
+          where: { id: bookingId },
+          data: { status: 'PENDING_PAYMENT' },
+        });
+        await tx.bookingStatusHistory.create({
+          data: {
+            bookingId,
+            fromStatus: currentBooking.status,
+            toStatus: 'PENDING_PAYMENT',
+            changedBy: userId,
+          },
+        });
+      }
 
-    const vnpayUrl = this.configService.get('VNPAY_URL') || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
-    const paymentUrl = `${vnpayUrl}?vnp_TxnRef=${bookingId}&vnp_Amount=${Number(booking.totalAmount) * 100}`;
+      const vnpayUrl = this.configService.get('VNPAY_URL') || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
+      const url = `${vnpayUrl}?vnp_TxnRef=${bookingId}&vnp_Amount=${booking.totalAmount.mul(100).toNumber()}`;
+      const idempotencyKey = `PAY_VNPAY_${bookingId}_${Date.now()}`;
 
-    const idempotencyKey = `PAY_VNPAY_${bookingId}_${Date.now()}`;
+      if (existingPayment) {
+        await tx.payment.update({
+          where: { id: existingPayment.id },
+          data: { status: 'PENDING' },
+        });
+      } else {
+        await tx.payment.create({
+          data: {
+            bookingId,
+            method: 'VNPAY',
+            amount: booking.totalAmount,
+            status: 'PENDING',
+            idempotencyKey,
+          },
+        });
+      }
 
-    if (existingPayment) {
-      // Update existing pending payment
-      await this.prisma.payment.update({
-        where: { id: existingPayment.id },
-        data: { status: 'PENDING' },
-      });
-    } else {
-      await this.prisma.payment.create({
-        data: {
-          bookingId,
-          method: 'VNPAY',
-          amount: booking.totalAmount,
-          status: 'PENDING',
-          idempotencyKey,
-        },
-      });
-    }
+      return { paymentUrl: url };
+    });
 
     return { paymentUrl };
   }
@@ -133,23 +149,7 @@ export class PaymentService {
           return { RspCode: '00', Message: 'Confirm Success' };
         }
 
-        // BE-011 fix: Use state machine transition instead of direct status update
-        // PENDING_PAYMENT → CONFIRMED is valid transition
-        if (this.bookingService.canTransition(payment.booking.status, 'CONFIRMED')) {
-          await tx.booking.update({
-            where: { id: bookingId },
-            data: { status: 'CONFIRMED' },
-          });
-          // Create history record
-          await tx.bookingStatusHistory.create({
-            data: {
-              bookingId,
-              fromStatus: payment.booking.status,
-              toStatus: 'CONFIRMED',
-              reason: 'Payment confirmed via VNPay callback',
-            },
-          });
-        }
+        await this.bookingService.updateBookingStatusWithTx(tx, bookingId, 'CONFIRMED', null);
       } else {
         const updateResult = await tx.payment.updateMany({
           where: { id: payment.id, status: 'PENDING' },

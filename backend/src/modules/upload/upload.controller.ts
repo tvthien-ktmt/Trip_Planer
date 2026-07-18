@@ -12,7 +12,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
+import { memoryStorage } from 'multer';
 import { extname, join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
@@ -36,14 +36,7 @@ const ALLOWED_MIME_TYPES = [
 ];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
-const createStorage = (folder: string) =>
-  diskStorage({
-    destination: join(process.cwd(), 'uploads', folder),
-    filename: (_req, file, cb) => {
-      const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
-      cb(null, uniqueName);
-    },
-  });
+const createStorage = () => memoryStorage();
 
 const imageFilter = (_req: any, file: Express.Multer.File, cb: any) => {
   if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
@@ -69,26 +62,19 @@ const imageFilter = (_req: any, file: Express.Multer.File, cb: any) => {
 };
 
 // BE-043 fix: Validate magic bytes to prevent spoofing
-async function validateImageSignature(filePath: string): Promise<boolean> {
-  const fd = await fs.promises.open(filePath, 'r');
-  try {
-    const buffer = Buffer.alloc(12);
-    await fd.read(buffer, 0, 12, 0);
-    const hex = buffer.toString('hex').toUpperCase();
+async function validateImageSignature(buffer: Buffer): Promise<boolean> {
+  const hex = buffer.toString('hex', 0, 12).toUpperCase();
 
-    // JPEG: FF D8 FF
-    if (hex.startsWith('FFD8FF')) return true;
-    // PNG: 89 50 4E 47
-    if (hex.startsWith('89504E47')) return true;
-    // GIF: 47 49 46 38
-    if (hex.startsWith('47494638')) return true;
-    // WebP: RIFF ... WEBP (bytes 0-3 = 52 49 46 46, bytes 8-11 = 57 45 42 50)
-    if (hex.startsWith('52494646') && hex.substring(16, 24) === '57454250') return true;
+  // JPEG: FF D8 FF
+  if (hex.startsWith('FFD8FF')) return true;
+  // PNG: 89 50 4E 47
+  if (hex.startsWith('89504E47')) return true;
+  // GIF: 47 49 46 38
+  if (hex.startsWith('47494638')) return true;
+  // WebP: RIFF ... WEBP
+  if (hex.startsWith('52494646') && hex.substring(16, 24) === '57454250') return true;
 
-    return false;
-  } finally {
-    await fd.close();
-  }
+  return false;
 }
 
 @ApiTags('File Upload')
@@ -109,7 +95,7 @@ export class UploadController {
   })
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: createStorage('avatars'),
+      storage: createStorage(),
       fileFilter: imageFilter,
       limits: { fileSize: MAX_FILE_SIZE },
     }),
@@ -121,13 +107,17 @@ export class UploadController {
     if (!file) throw new BadRequestException('No file uploaded');
 
     // BE-043 fix: validate magic bytes
-    const isValid = await validateImageSignature(file.path);
+    const isValid = await validateImageSignature(file.buffer);
     if (!isValid) {
-      await fs.promises.unlink(file.path).catch(() => {});
       throw new BadRequestException('Invalid file signature (spoofed extension detected)');
     }
 
-    const fileUrl = `/uploads/avatars/${file.filename}`;
+    const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
+    const folderPath = join(process.cwd(), 'uploads', 'avatars');
+    await fs.promises.mkdir(folderPath, { recursive: true });
+    await fs.promises.writeFile(join(folderPath, uniqueName), file.buffer);
+
+    const fileUrl = `/uploads/avatars/${uniqueName}`;
 
     // Update user avatarUrl
     await this.prisma.user.update({
@@ -166,7 +156,7 @@ export class UploadController {
   })
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: createStorage('blog'),
+      storage: createStorage(),
       fileFilter: imageFilter,
       limits: { fileSize: MAX_FILE_SIZE },
     }),
@@ -178,13 +168,17 @@ export class UploadController {
     if (!file) throw new BadRequestException('No file uploaded');
 
     // BE-043 fix: validate magic bytes
-    const isValid = await validateImageSignature(file.path);
+    const isValid = await validateImageSignature(file.buffer);
     if (!isValid) {
-      await fs.promises.unlink(file.path).catch(() => {});
       throw new BadRequestException('Invalid file signature');
     }
 
-    const fileUrl = `/uploads/blog/${file.filename}`;
+    const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
+    const folderPath = join(process.cwd(), 'uploads', 'blog');
+    await fs.promises.mkdir(folderPath, { recursive: true });
+    await fs.promises.writeFile(join(folderPath, uniqueName), file.buffer);
+
+    const fileUrl = `/uploads/blog/${uniqueName}`;
 
     const mediaFile = await this.prisma.mediaFile.create({
       data: {
@@ -222,7 +216,7 @@ export class UploadController {
   })
   @UseInterceptors(
     FilesInterceptor('files', 10, {
-      storage: createStorage('gallery'),
+      storage: createStorage(),
       fileFilter: imageFilter,
       limits: { fileSize: MAX_FILE_SIZE },
     }),
@@ -237,17 +231,20 @@ export class UploadController {
 
     // Validate all signatures first
     for (const file of files) {
-      const isValid = await validateImageSignature(file.path);
+      const isValid = await validateImageSignature(file.buffer);
       if (!isValid) {
-        // Cleanup all uploaded files in this batch if one is invalid
-        await Promise.all(files.map(f => fs.promises.unlink(f.path).catch(() => {})));
         throw new BadRequestException(`Invalid file signature detected in file: ${file.originalname}`);
       }
     }
 
+    const folderPath = join(process.cwd(), 'uploads', 'gallery');
+    await fs.promises.mkdir(folderPath, { recursive: true });
+
     const results = await Promise.all(
       files.map(async (file) => {
-        const fileUrl = `/uploads/gallery/${file.filename}`;
+        const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
+        await fs.promises.writeFile(join(folderPath, uniqueName), file.buffer);
+        const fileUrl = `/uploads/gallery/${uniqueName}`;
 
         const mediaFile = await this.prisma.mediaFile.create({
           data: {

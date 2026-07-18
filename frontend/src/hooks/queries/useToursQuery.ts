@@ -6,7 +6,7 @@ const fetchTours = async () => {
   return data.data || data; // Assuming the API returns { data: [...] } or just the array
 };
 
-export const useToursQuery = (filters?: any) => {
+export const useToursQuery = (filters?: Record<string, unknown>) => {
   return useQuery({
     queryKey: ['tours', filters],
     queryFn: async (): Promise<any[]> => {

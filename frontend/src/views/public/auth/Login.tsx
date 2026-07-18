@@ -3,6 +3,7 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter , useSearchParams} from 'next/navigation';
 import { useAuthStore } from '../../../stores';
+import { setAuthCookie } from '../../../lib/auth';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -22,7 +23,8 @@ export default function Login() {
     setIsLoading(true);
     
     try {
-      const response = await fetch('http://localhost:3000/api/auth/login', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+      const response = await fetch(`${apiUrl}/auth/login`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -43,11 +45,11 @@ export default function Login() {
         id: data.user.id,
         name: data.user.fullName,
         email: data.user.email,
-        role: data.user.role === 'ADMIN' ? 'Admin' : 'User',
+        role: data.user.role,
       }, data.access_token);
       
       // Store token in cookies for Next.js middleware (FE-001/FE-002)
-      document.cookie = `token=${data.access_token}; path=/; max-age=86400; samesite=lax`;
+      setAuthCookie(data.access_token);
 
       toast.success('Đăng nhập thành công');
       navigate.push(redirect);

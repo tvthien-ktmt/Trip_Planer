@@ -13,7 +13,10 @@ export class CryptoService {
     if (!key) {
       throw new Error('[FATAL] APP_SECRET environment variable is not set. Application startup aborted for security.');
     }
-    const salt = this.configService.get<string>('APP_SALT') || crypto.randomBytes(16).toString('hex');
+    const salt = this.configService.get<string>('APP_SALT');
+    if (!salt) {
+      throw new Error('[FATAL] APP_SALT environment variable is not set. Application startup aborted for security.');
+    }
     // Ensure key is 32 bytes
     this.secretKey = crypto.scryptSync(key, salt, 32);
   }

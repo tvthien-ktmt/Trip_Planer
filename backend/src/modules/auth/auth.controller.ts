@@ -12,6 +12,7 @@ import {
   Param,
   ParseIntPipe,
   Query,
+  ForbiddenException,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { SessionService } from './session.service';
@@ -215,7 +216,7 @@ export class AuthController {
     @CurrentUser() user: any,
   ) {
     if (user.role !== 'ADMIN') {
-      throw new Error('Forbidden');
+      throw new ForbiddenException('Admin only');
     }
     return this.authService.unlockAccount(BigInt(userId));
   }

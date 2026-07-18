@@ -2,6 +2,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { PaymentService } from './payment.service';
 import { PrismaService } from '../../prisma/prisma.service';
 import { ConfigService } from '@nestjs/config';
+import { BookingService } from '../booking/booking.service';
 import * as crypto from 'crypto';
 import * as qs from 'qs';
 
@@ -20,9 +21,13 @@ describe('PaymentService', () => {
             payment: {
               findUnique: jest.fn(),
               update: jest.fn(),
+              updateMany: jest.fn(),
             },
             booking: {
               update: jest.fn(),
+            },
+            bookingStatusHistory: {
+              create: jest.fn(),
             },
           },
         },
@@ -30,6 +35,14 @@ describe('PaymentService', () => {
           provide: ConfigService,
           useValue: {
             get: jest.fn().mockReturnValue('secret'),
+          },
+        },
+        {
+          provide: BookingService,
+          useValue: {
+            updateBookingStatus: jest.fn().mockResolvedValue(undefined),
+            updateBookingStatusWithTx: jest.fn().mockResolvedValue(undefined),
+            canTransition: jest.fn().mockReturnValue(true),
           },
         },
       ],
@@ -67,7 +80,9 @@ describe('PaymentService', () => {
         id: 1n,
         bookingId: 1n,
         status: 'PENDING',
+        booking: { status: 'PENDING_PAYMENT' },
       });
+      (prisma.payment.updateMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
 
       const res1 = await service.vnpayCallback(request1Params);
       expect(res1).toEqual({ RspCode: '00', Message: 'Confirm Success' });
@@ -77,20 +92,22 @@ describe('PaymentService', () => {
         id: 1n,
         bookingId: 1n,
         status: 'SUCCESS',
+        booking: { status: 'CONFIRMED' },
       });
+      (prisma.payment.updateMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
 
       const res2 = await service.vnpayCallback(request2Params);
       expect(res2).toEqual({ RspCode: '00', Message: 'Confirm Success' });
 
       // The core assertion: verify update was only called ONCE for the first request
-      expect(prisma.payment.update).toHaveBeenCalledTimes(1);
-      expect(prisma.payment.update).toHaveBeenCalledWith({
-        where: { id: 1n },
+      expect(prisma.payment.updateMany).toHaveBeenCalledTimes(1);
+      expect(prisma.payment.updateMany).toHaveBeenCalledWith({
+        where: { id: 1n, status: 'PENDING' },
         data: { status: 'SUCCESS', transactionRef: '123456' },
       });
 
       // Verify booking update was only called ONCE
-      expect(prisma.booking.update).toHaveBeenCalledTimes(1);
+      expect(service['bookingService'].updateBookingStatusWithTx).toHaveBeenCalledTimes(1);
     });
 
     it('should throw BadRequestException cleanly (and not crash with RangeError) when secureHash length mismatches', async () => {

@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { MapPin } from 'lucide-react';
 import { useDestinationsQuery } from '../../hooks/queries';
+import { Destination } from '../../types';
 
 interface DestinationAutocompleteProps {
   value: string;
@@ -30,7 +31,7 @@ export const DestinationAutocomplete = ({ value, onChange, placeholder = "Bạn 
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const filtered = destinations?.filter((d: any) => 
+  const filtered = destinations?.filter((d: Destination) => 
     d.name.toLowerCase().includes(searchTerm.toLowerCase()) || 
     d.location.toLowerCase().includes(searchTerm.toLowerCase())
   ) || [];

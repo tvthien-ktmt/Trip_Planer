@@ -59,10 +59,10 @@ export class FlightService {
     const sortedFlights = validFlights.sort((a: any, b: any) => {
       if (sortBy === 'price_asc') {
         const minA = Math.min(
-          ...a.fareClasses.map((fc: any) => Number(fc.basePrice)),
+          ...a.fareClasses.map((fc: any) => fc.basePrice.toNumber()),
         );
         const minB = Math.min(
-          ...b.fareClasses.map((fc: any) => Number(fc.basePrice)),
+          ...b.fareClasses.map((fc: any) => fc.basePrice.toNumber()),
         );
         return minA - minB;
       }

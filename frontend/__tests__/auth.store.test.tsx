@@ -5,6 +5,7 @@ describe('useAuthStore', () => {
   beforeEach(() => {
     // Reset state before each test
     useAuthStore.setState({ user: null, isAuthenticated: false, isLoginModalOpen: false });
+    global.fetch = jest.fn(() => Promise.resolve({ ok: true } as Response));
   });
 
   it('should initialize with default state', () => {
@@ -22,10 +23,10 @@ describe('useAuthStore', () => {
   });
 
   it('should login correctly', () => {
-    const mockUser = { id: 1, name: 'Test User', email: 'test@example.com', role: 'USER' };
+    const mockUser = { id: '1', name: 'Test User', email: 'test@example.com', role: 'USER' as const };
     
     act(() => {
-      useAuthStore.getState().login(mockUser);
+      useAuthStore.getState().login(mockUser, 'mock-token');
     });
 
     const state = useAuthStore.getState();
@@ -34,10 +35,10 @@ describe('useAuthStore', () => {
   });
 
   it('should logout correctly', () => {
-    const mockUser = { id: 1, name: 'Test User', email: 'test@example.com', role: 'USER' };
+    const mockUser = { id: '1', name: 'Test User', email: 'test@example.com', role: 'USER' as const };
     
     act(() => {
-      useAuthStore.getState().login(mockUser);
+      useAuthStore.getState().login(mockUser, 'mock-token');
     });
     
     act(() => {

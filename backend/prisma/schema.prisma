@@ -43,6 +43,7 @@ model User {
   pointTransactions      PointTransaction[]
   authoredPosts          BlogPost[]
   uploadedMedia          MediaFile[]
+  otpCodes               OtpCode[]
   notifications          Notification[]
   auditLogs              AuditLog[]
 }
@@ -95,8 +96,9 @@ model RefreshToken {
 
 model OtpCode {
   id         BigInt     @id @default(autoincrement())
-  userId     BigInt     @default(0) // 0 for pre-registration OTPs
-  email      String? // Store email for pre-registration OTP lookup (DB-005 fix)
+  userId     BigInt?    // Nullable — null for pre-registration OTPs
+  user       User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  email      String     // NOT NULL — always store email for lookup
   codeHash   String
   purpose    OtpPurpose
   expiresAt  DateTime
@@ -317,7 +319,7 @@ model Booking {
   id          BigInt        @id @default(autoincrement())
   bookingCode String        @unique
   userId      BigInt
-  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user        User          @relation(fields: [userId], references: [id], onDelete: Restrict)
   type        BookingType
   status      BookingStatus @default(DRAFT)
   totalAmount Decimal       @default(0) @db.Decimal(18, 2)
@@ -477,13 +479,12 @@ model VoucherRedemption {
   voucherId  BigInt
   voucher    Voucher  @relation(fields: [voucherId], references: [id])
   userId     BigInt
-  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user       User     @relation(fields: [userId], references: [id], onDelete: Restrict)
   bookingId  BigInt
-  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
+  booking    Booking  @relation(fields: [bookingId], references: [id], onDelete: Restrict)
   redeemedAt DateTime @default(now())
 
   @@unique([voucherId, bookingId]) // prevent applying same voucher to same booking twice
-  @@unique([voucherId, userId]) // DB-004 fix: prevent user from using same voucher multiple times
   @@index([userId]) // DB-018
   @@index([voucherId]) // DB-018
 }
