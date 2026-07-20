@@ -17,6 +17,40 @@ const mockDashboardData = {
   ]
 };
 
+import { cookies } from 'next/headers';
+import { jwtVerify } from 'jose';
+
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_ACCESS_SECRET || 'dev-secret');
+
 export async function GET() {
+  const cookieStore = await cookies();
+  const token = cookieStore.get('token')?.value;
+  if (!token) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { payload } = await jwtVerify(token, JWT_SECRET);
+    if (payload.role !== 'ADMIN' && payload.role !== 'STAFF') {
+      return NextResponse.json({ error: 'Forbidden' }, { status: 403 });
+    }
+  } catch (e) {
+    return NextResponse.json({ error: 'Invalid token' }, { status: 401 });
+  }
+
+  try {
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+    const response = await fetch(`${apiUrl}/admin/dashboard`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    
+    if (response.ok) {
+      const data = await response.json();
+      return NextResponse.json(data);
+    }
+  } catch (e) {
+    // Fallback to mock data if backend fails
+  }
+
   return NextResponse.json(mockDashboardData);
 }

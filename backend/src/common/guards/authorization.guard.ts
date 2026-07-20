@@ -11,6 +11,7 @@ import { PERMISSIONS_KEY } from '../decorators/permissions.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
 import { CACHE_MANAGER } from '@nestjs/cache-manager';
 import type { Cache } from 'cache-manager';
+import { rolePermissionsCacheKey } from '../constants/cache-keys';
 
 /**
  * Authorization Guard — checks both Role and Permission.
@@ -90,13 +91,13 @@ export class AuthorizationGuard implements CanActivate {
    * Could be cached in Redis for production performance.
    */
   private async getUserPermissions(role: string): Promise<string[]> {
-    const cacheKey = `role_permissions_${role}`;
+    const cacheKey = rolePermissionsCacheKey(role);
     const cachedPermissions = await this.cacheManager.get<string[]>(cacheKey);
     if (cachedPermissions) {
       return cachedPermissions;
     }
 
-    const rolePermissions = await this.prisma.rolePermission.findMany({
+    const rolePermissions = await this.prisma.extended.rolePermission.findMany({
       where: { role: role as any },
       include: { permission: true },
     });

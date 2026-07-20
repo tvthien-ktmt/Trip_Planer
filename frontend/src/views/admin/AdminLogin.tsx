@@ -3,7 +3,6 @@ import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { PlaneTakeoff, Lock } from 'lucide-react';
 import { useAuthStore } from '../../stores';
-import { setAuthCookie } from '../../lib/auth';
 import { toast } from 'sonner';
 
 export default function AdminLogin() {
@@ -19,7 +18,7 @@ export default function AdminLogin() {
     setIsLoading(true);
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
-      const response = await fetch(`${apiUrl}/auth/login`, {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, password }),
@@ -36,7 +35,11 @@ export default function AdminLogin() {
         return;
       }
       login({ id: data.user.id, name: data.user.fullName, email: data.user.email, role: data.user.role }, data.access_token);
-      setAuthCookie(data.access_token);
+      const secure = process.env.NODE_ENV === "production" ? "; secure" : "";
+      document.cookie = `token=${data.access_token}; path=/; max-age=${15*60}; samesite=lax${secure}`;
+      if (data.refresh_token) {
+        document.cookie = `refresh_token=${data.refresh_token}; path=/; max-age=${7*24*60*60}; samesite=lax${secure}`;
+      }
       toast.success('Đăng nhập thành công');
       navigate.push('/admin/dashboard');
     } catch (error) {

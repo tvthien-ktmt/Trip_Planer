@@ -1,7 +1,11 @@
 import { NextResponse } from 'next/server';
 import type { NextRequest } from 'next/server';
 
-export function middleware(request: NextRequest) {
+import { jwtVerify } from 'jose';
+
+const JWT_SECRET = new TextEncoder().encode(process.env.JWT_ACCESS_SECRET || 'dev-secret');
+
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   // Paths that require ADMIN or STAFF role
@@ -12,17 +16,13 @@ export function middleware(request: NextRequest) {
 
   const token = request.cookies.get('token')?.value;
 
-  // We decode the payload manually because the JWT secret might not be available in the Edge runtime
   let user: { role: string; sub: string; email: string; iat: number; exp: number } | null = null;
   if (token) {
     try {
-      const parts = token.split('.');
-      if (parts.length === 3) {
-        const payload = JSON.parse(Buffer.from(parts[1]!, 'base64').toString('utf-8'));
-        user = payload;
-      }
+      const { payload } = await jwtVerify(token, JWT_SECRET);
+      user = payload as any;
     } catch (error) {
-      console.error('Failed to parse token in middleware', error);
+      console.error('Failed to verify token in middleware', error);
     }
   }
 

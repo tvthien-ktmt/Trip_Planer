@@ -3,6 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { useBookingFlowStore } from "../../stores";
 import { Button } from "../../components/ui/Button";
+import { BookingStep } from '../../types';
 
 const TAKEN_SEATS = ["1A", "2C", "3E", "4B", "5D", "6A", "7F", "2E"];
 const ROWS = [1, 2, 3, 4, 5, 6, 7];
@@ -12,7 +13,7 @@ export default function SeatSelection() {
   const navigate = useRouter();
   const { setStep, updateBookingData, selectedSeats, passengerInfo } = useBookingFlowStore();
 
-  useEffect(() => { setStep(3); }, [setStep]);
+  useEffect(() => { setStep(BookingStep.SEAT); }, [setStep]);
 
   const handleSeatClick = (seatId: string) => {
     if (TAKEN_SEATS.includes(seatId)) return;

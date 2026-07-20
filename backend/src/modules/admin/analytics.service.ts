@@ -12,13 +12,13 @@ export class AnalyticsService {
     const { startDate, groupFormat } = this.getPeriodConfig(period);
 
     // Total revenue (SUCCESS payments)
-    const totalRevenue = await this.prisma.payment.aggregate({
+    const totalRevenue = await this.prisma.extended.payment.aggregate({
       where: { status: 'SUCCESS' },
       _sum: { amount: true },
     });
 
     // Revenue this period — use Payment.createdAt as proxy
-    const periodRevenue = await this.prisma.payment.aggregate({
+    const periodRevenue = await this.prisma.extended.payment.aggregate({
       where: {
         status: 'SUCCESS',
         createdAt: { gte: startDate },
@@ -42,7 +42,7 @@ export class AnalyticsService {
     `;
 
     // Top payment methods
-    const methodBreakdown = await this.prisma.payment.groupBy({
+    const methodBreakdown = await this.prisma.extended.payment.groupBy({
       by: ['method'],
       where: { status: 'SUCCESS' },
       _sum: { amount: true },
@@ -72,14 +72,14 @@ export class AnalyticsService {
     const { startDate, groupFormat } = this.getPeriodConfig(period);
 
     const [total, byStatus, byType, trend] = await Promise.all([
-      this.prisma.booking.count(),
+      this.prisma.extended.booking.count(),
 
-      this.prisma.booking.groupBy({
+      this.prisma.extended.booking.groupBy({
         by: ['status'],
         _count: true,
       }),
 
-      this.prisma.booking.groupBy({
+      this.prisma.extended.booking.groupBy({
         by: ['type'],
         _count: true,
         _sum: { totalAmount: true },
@@ -115,14 +115,14 @@ export class AnalyticsService {
     const { startDate, groupFormat } = this.getPeriodConfig(period);
 
     const [total, byStatus, byRole, growth, newThisPeriod] = await Promise.all([
-      this.prisma.user.count(),
+      this.prisma.extended.user.count(),
 
-      this.prisma.user.groupBy({
+      this.prisma.extended.user.groupBy({
         by: ['status'],
         _count: true,
       }),
 
-      this.prisma.user.groupBy({
+      this.prisma.extended.user.groupBy({
         by: ['role'],
         _count: true,
       }),
@@ -137,7 +137,7 @@ export class AnalyticsService {
         ORDER BY date ASC
       `,
 
-      this.prisma.user.count({
+      this.prisma.extended.user.count({
         where: { createdAt: { gte: startDate } },
       }),
     ]);
@@ -201,15 +201,15 @@ export class AnalyticsService {
    */
   async getRefunds() {
     const [total, byStatus, totalAmount] = await Promise.all([
-      this.prisma.refund.count(),
+      this.prisma.extended.refund.count(),
 
-      this.prisma.refund.groupBy({
+      this.prisma.extended.refund.groupBy({
         by: ['status'],
         _count: true,
         _sum: { amount: true },
       }),
 
-      this.prisma.refund.aggregate({
+      this.prisma.extended.refund.aggregate({
         where: { status: 'APPROVED' },
         _sum: { amount: true },
       }),
@@ -230,12 +230,12 @@ export class AnalyticsService {
    * Membership analytics — tier distribution.
    */
   async getMembership() {
-    const tiers = await this.prisma.membershipTier.findMany({
+    const tiers = await this.prisma.extended.membershipTier.findMany({
       orderBy: { minPoints: 'asc' },
     });
 
     // BE-039 fix: Use groupBy to avoid N+1 queries
-    const pointsByTier = await this.prisma.userPoints.groupBy({
+    const pointsByTier = await this.prisma.extended.userPoints.groupBy({
       by: ['tierId'],
       _count: true,
     });
@@ -248,11 +248,11 @@ export class AnalyticsService {
       userCount: countsMap.get(tier.id.toString()) || 0,
     }));
 
-    const totalWithPoints = await this.prisma.userPoints.count({
+    const totalWithPoints = await this.prisma.extended.userPoints.count({
       where: { pointsBalance: { gt: 0 } },
     });
 
-    const avgPoints = await this.prisma.userPoints.aggregate({
+    const avgPoints = await this.prisma.extended.userPoints.aggregate({
       _avg: { pointsBalance: true },
     });
 
@@ -287,26 +287,26 @@ export class AnalyticsService {
       newUsersThisMonth,
       pendingRefunds,
     ] = await Promise.all([
-      this.prisma.payment.aggregate({
+      this.prisma.extended.payment.aggregate({
         where: { status: 'SUCCESS' },
         _sum: { amount: true },
       }),
-      this.prisma.payment.aggregate({
+      this.prisma.extended.payment.aggregate({
         where: { status: 'SUCCESS', createdAt: { gte: startOfMonth } },
         _sum: { amount: true },
       }),
-      this.prisma.payment.aggregate({
+      this.prisma.extended.payment.aggregate({
         where: {
           status: 'SUCCESS',
           createdAt: { gte: lastMonthStart, lte: lastMonthEnd },
         },
         _sum: { amount: true },
       }),
-      this.prisma.booking.count(),
-      this.prisma.booking.count({ where: { createdAt: { gte: startOfDay } } }),
-      this.prisma.user.count({ where: { deletedAt: null } }),
-      this.prisma.user.count({ where: { createdAt: { gte: startOfMonth } } }),
-      this.prisma.refund.count({ where: { status: 'REQUESTED' } }),
+      this.prisma.extended.booking.count(),
+      this.prisma.extended.booking.count({ where: { createdAt: { gte: startOfDay } } }),
+      this.prisma.extended.user.count({ where: { deletedAt: null } }),
+      this.prisma.extended.user.count({ where: { createdAt: { gte: startOfMonth } } }),
+      this.prisma.extended.refund.count({ where: { status: 'REQUESTED' } }),
     ]);
 
     const monthRevenue = Number((revenueThisMonth._sum as any)?.amount || 0);

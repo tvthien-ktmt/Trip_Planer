@@ -11,7 +11,7 @@ export class MembershipService {
 
     if (pointsChange <= 0) return;
 
-    await this.prisma.$transaction(async (tx) => {
+    await this.prisma.extended.$transaction(async (tx) => {
       // Create transaction
       await tx.pointTransaction.create({
         data: {

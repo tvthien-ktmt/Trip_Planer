@@ -22,7 +22,7 @@ export class BlogService {
     const slug = dto.slug || this.generateSlug(dto.title);
 
     // Check slug uniqueness
-    const existing = await this.prisma.blogPost.findUnique({ where: { slug } });
+    const existing = await this.prisma.extended.blogPost.findUnique({ where: { slug } });
     if (existing) {
       throw new ConflictException(
         `Slug "${slug}" already exists. Please provide a custom slug.`,
@@ -31,7 +31,7 @@ export class BlogService {
 
     const { tagIds, categoryId, ...postData } = dto;
 
-    const post = await this.prisma.blogPost.create({
+    const post = await this.prisma.extended.blogPost.create({
       data: {
         ...postData,
         slug,
@@ -60,7 +60,7 @@ export class BlogService {
     userId: bigint,
     isAdmin = false,
   ) {
-    const post = await this.prisma.blogPost.findUnique({ where: { id } });
+    const post = await this.prisma.extended.blogPost.findUnique({ where: { id } });
     if (!post) throw new NotFoundException('Blog post not found');
 
     // Only author or admin can edit
@@ -71,7 +71,7 @@ export class BlogService {
     const { tagIds, categoryId, ...postData } = dto;
 
     // BE-056 fix: Wrap in transaction
-    const updated = await this.prisma.$transaction(async (tx) => {
+    const updated = await this.prisma.extended.$transaction(async (tx) => {
       if (tagIds !== undefined) {
         await tx.blogPostTag.deleteMany({ where: { postId: id } });
       }
@@ -99,13 +99,13 @@ export class BlogService {
   }
 
   async publishPost(id: bigint, scheduledAt?: string) {
-    const post = await this.prisma.blogPost.findUnique({ where: { id } });
+    const post = await this.prisma.extended.blogPost.findUnique({ where: { id } });
     if (!post) throw new NotFoundException('Blog post not found');
 
     if (scheduledAt) {
       // Schedule for future publish
       const scheduleDate = new Date(scheduledAt);
-      return this.prisma.blogPost.update({
+      return this.prisma.extended.blogPost.update({
         where: { id },
         data: {
           status: 'SCHEDULED',
@@ -115,7 +115,7 @@ export class BlogService {
     }
 
     // Publish immediately
-    return this.prisma.blogPost.update({
+    return this.prisma.extended.blogPost.update({
       where: { id },
       data: {
         status: 'PUBLISHED',
@@ -126,27 +126,27 @@ export class BlogService {
   }
 
   async unpublishPost(id: bigint) {
-    const post = await this.prisma.blogPost.findUnique({ where: { id } });
+    const post = await this.prisma.extended.blogPost.findUnique({ where: { id } });
     if (!post) throw new NotFoundException('Blog post not found');
 
-    return this.prisma.blogPost.update({
+    return this.prisma.extended.blogPost.update({
       where: { id },
       data: { status: 'DRAFT', publishedAt: null, scheduledAt: null },
     });
   }
 
   async deletePost(id: bigint) {
-    const post = await this.prisma.blogPost.findUnique({ where: { id } });
+    const post = await this.prisma.extended.blogPost.findUnique({ where: { id } });
     if (!post) throw new NotFoundException('Blog post not found');
 
-    await this.prisma.blogPostTag.deleteMany({ where: { postId: id } });
-    await this.prisma.blogPost.delete({ where: { id } });
+    await this.prisma.extended.blogPostTag.deleteMany({ where: { postId: id } });
+    await this.prisma.extended.blogPost.delete({ where: { id } });
 
     return { success: true };
   }
 
   async getPost(slug: string) {
-    const post = await this.prisma.blogPost.findUnique({
+    const post = await this.prisma.extended.blogPost.findUnique({
       where: { slug },
       include: {
         tags: { include: { tag: true } },
@@ -155,7 +155,7 @@ export class BlogService {
     if (!post) throw new NotFoundException('Blog post not found');
 
     // Increment view count
-    await this.prisma.blogPost.update({
+    await this.prisma.extended.blogPost.update({
       where: { id: post.id },
       data: { viewCount: { increment: 1 } },
     });
@@ -193,8 +193,8 @@ export class BlogService {
     }
 
     const [total, posts] = await Promise.all([
-      this.prisma.blogPost.count({ where }),
-      this.prisma.blogPost.findMany({
+      this.prisma.extended.blogPost.count({ where }),
+      this.prisma.extended.blogPost.findMany({
         where,
         skip,
         take: limit,
@@ -225,18 +225,18 @@ export class BlogService {
 
   async createCategory(dto: CreateBlogCategoryDto) {
     const slug = dto.slug || this.generateSlug(dto.name);
-    return this.prisma.blogCategory.create({ data: { name: dto.name, slug } });
+    return this.prisma.extended.blogCategory.create({ data: { name: dto.name, slug } });
   }
 
   async listCategories() {
-    return this.prisma.blogCategory.findMany({ orderBy: { name: 'asc' } });
+    return this.prisma.extended.blogCategory.findMany({ orderBy: { name: 'asc' } });
   }
 
   // ===== Tags =====
 
   async createTag(dto: CreateBlogTagDto) {
     const slug = dto.slug || this.generateSlug(dto.name);
-    return this.prisma.blogTag.upsert({
+    return this.prisma.extended.blogTag.upsert({
       where: { slug },
       create: { name: dto.name, slug },
       update: {},
@@ -244,7 +244,7 @@ export class BlogService {
   }
 
   async listTags() {
-    return this.prisma.blogTag.findMany({ orderBy: { name: 'asc' } });
+    return this.prisma.extended.blogTag.findMany({ orderBy: { name: 'asc' } });
   }
 
   // ===== Helpers =====

@@ -16,11 +16,15 @@ export class ReviewService {
     rating: number,
     comment?: string,
   ) {
+    if (rating < 1 || rating > 5) {
+      throw new BadRequestException('Rating must be between 1 and 5');
+    }
+
     // 1. Enforce rule: User must have a COMPLETED booking for this item
     let hasCompletedBooking = false;
 
     if (reviewableType === 'TOUR') {
-      const booking = await this.prisma.booking.findFirst({
+      const booking = await this.prisma.extended.booking.findFirst({
         where: {
           userId,
           status: 'COMPLETED',
@@ -31,7 +35,7 @@ export class ReviewService {
       hasCompletedBooking = !!booking;
     } else {
       // BE-031 fix: Map flight strictly
-      const booking = await this.prisma.booking.findFirst({
+      const booking = await this.prisma.extended.booking.findFirst({
         where: {
           userId,
           status: 'COMPLETED',
@@ -53,14 +57,14 @@ export class ReviewService {
     }
 
     // 2. Prevent spam (1 user = 1 review per item)
-    const existingReview = await this.prisma.review.findFirst({
+    const existingReview = await this.prisma.extended.review.findFirst({
       where: { userId, reviewableType, reviewableId },
     });
     if (existingReview) {
       throw new BadRequestException('You have already reviewed this item');
     }
 
-    const review = await this.prisma.review.create({
+    const review = await this.prisma.extended.review.create({
       data: {
         userId,
         reviewableType,
@@ -72,7 +76,7 @@ export class ReviewService {
 
     // 3. Update ratingAvg incrementally
     if (reviewableType === 'TOUR') {
-      const tour = await this.prisma.tour.findUnique({
+      const tour = await this.prisma.extended.tour.findUnique({
         where: { id: reviewableId },
       });
       if (tour) {
@@ -80,7 +84,7 @@ export class ReviewService {
         const oldAvg = Number(tour.ratingAvg);
         const newAvg = (oldAvg * oldCount + rating) / (oldCount + 1);
 
-        await this.prisma.tour.update({
+        await this.prisma.extended.tour.update({
           where: { id: reviewableId },
           data: {
             ratingAvg: newAvg,
@@ -94,46 +98,35 @@ export class ReviewService {
   }
 
   async upvoteReview(reviewId: bigint, userId: bigint) {
-    // BE-032 fix: Prevent same user from upvoting multiple times
-    // Check if this user already has an active upvote recorded
-    const review = await this.prisma.review.findUnique({
+    const review = await this.prisma.extended.review.findUnique({
       where: { id: reviewId },
     });
     if (!review) throw new NotFoundException('Review not found');
 
-    // Use a simple string-based tracking approach: store user IDs in a JSON field
-    // If schema doesn't have ReviewVote table, we leverage uniqueVoters field
-    // Check existing voters list (stored as serialized JSON in comment or use a Prisma raw query)
-    // Since schema has no ReviewVote table, we prevent double-upvote by checking if userId is already noted
-    // Practical approach: Use the existing Prisma schema and a separate tracking record
-    // For now, we'll use a raw approach - track upvoters with a dedicated unique check
-    
-    // Check if user already upvoted (via BookingItem or via direct check on a field we control)
-    // As a pragmatic fix without schema change: use Redis-style cache key check
-    // Since we don't have Redis access here, use a database lookup via ActivityLog as indicator
-    const existingVote = await this.prisma.activityLog.findFirst({
-      where: {
-        userId,
-        action: `REVIEW_UPVOTE_${reviewId.toString()}`,
-      },
-    });
+    return this.prisma.extended.$transaction(async (tx) => {
+      const existingVote = await tx.reviewVote.findFirst({
+        where: {
+          userId,
+          reviewId,
+        },
+      });
 
-    if (existingVote) {
-      throw new BadRequestException('You have already upvoted this review');
-    }
+      if (existingVote) {
+        throw new BadRequestException('You have already upvoted this review');
+      }
 
-    // Record the upvote in activity log to prevent duplicates
-    await this.prisma.activityLog.create({
-      data: {
-        userId,
-        action: `REVIEW_UPVOTE_${reviewId.toString()}`,
-        description: `Upvoted review #${reviewId.toString()}`,
-      },
-    });
+      await tx.reviewVote.create({
+        data: {
+          userId,
+          reviewId,
+          isUpvote: true,
+        },
+      });
 
-    return this.prisma.review.update({
-      where: { id: reviewId },
-      data: { helpfulCount: { increment: 1 } },
-    });
+      return tx.review.update({
+        where: { id: reviewId },
+        data: { helpfulCount: { increment: 1 } },
+      });
+    }, { isolationLevel: 'Serializable' });
   }
 }

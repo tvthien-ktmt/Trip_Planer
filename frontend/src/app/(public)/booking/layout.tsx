@@ -1,10 +1,8 @@
 'use client';
 import { useRouter, usePathname } from 'next/navigation';
-import { BookingProgressBar } from '../booking/BookingProgressBar';
-import { BookingSummarySidebar } from '../booking/BookingSummarySidebar';
-import { Header } from './Header';
-import { Footer } from './Footer';
-import { useBookingFlowStore } from '../../stores';
+import { BookingProgressBar } from '@/components/booking/BookingProgressBar';
+import { BookingSummarySidebar } from '@/components/booking/BookingSummarySidebar';
+import { useBookingFlowStore } from '@/stores';
 import { useEffect } from 'react';
 
 const stepPaths = [
@@ -18,7 +16,7 @@ const stepPaths = [
   '/booking/success',
 ];
 
-export const BookingLayout = ({ children }: { children?: React.ReactNode }) => {
+export default function BookingLayout({ children }: { children?: React.ReactNode }) {
   const pathname = usePathname();
   const navigate = useRouter();
   const { currentStep, selectedOutboundFlightId } = useBookingFlowStore();
@@ -39,8 +37,7 @@ export const BookingLayout = ({ children }: { children?: React.ReactNode }) => {
   const isSuccessPage = (pathname || "").includes('/booking/success');
 
   return (
-    <div className="min-h-screen flex flex-col bg-[var(--bg-main)]">
-      <Header />
+    <div className="flex flex-col bg-[var(--bg-main)] min-h-screen">
       {!isSuccessPage && <BookingProgressBar />}
       
       <main className="flex-1 flex flex-col py-[var(--spacing-space-8)] max-w-7xl mx-auto w-full px-4 sm:px-6 lg:px-8">
@@ -52,7 +49,6 @@ export const BookingLayout = ({ children }: { children?: React.ReactNode }) => {
         </div>
       </main>
 
-      {/* Mobile sticky summary bar would go here, shown only on small screens */}
       {!isSuccessPage && (
         <div className="lg:hidden sticky bottom-0 left-0 right-0 bg-[var(--bg-surface)] border-t border-[var(--border-main)] p-4 shadow-[var(--shadow-shadow-lg)] z-50">
           <div className="flex justify-between items-center">
@@ -68,8 +64,6 @@ export const BookingLayout = ({ children }: { children?: React.ReactNode }) => {
           </div>
         </div>
       )}
-
-      <Footer />
     </div>
   );
-};
+}

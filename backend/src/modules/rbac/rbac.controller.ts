@@ -22,6 +22,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuthorizationGuard } from '../../common/guards/authorization.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { PrismaService } from '../../prisma/prisma.service';
+import { rolePermissionsCacheKey } from '../../common/constants/cache-keys';
 
 // Predefined permission codes grouped by module
 export const PERMISSION_DEFINITIONS = [
@@ -150,7 +151,7 @@ export class RbacController {
   @Get('permissions')
   @ApiOperation({ summary: 'List all available permissions' })
   async listPermissions() {
-    return this.prisma.permission.findMany({
+    return this.prisma.extended.permission.findMany({
       orderBy: [{ module: 'asc' }, { code: 'asc' }],
     });
   }
@@ -158,7 +159,7 @@ export class RbacController {
   @Post('permissions')
   @ApiOperation({ summary: 'Create a new permission' })
   async createPermission(@Body() dto: CreatePermissionDto) {
-    return this.prisma.permission.create({ data: dto });
+    return this.prisma.extended.permission.create({ data: dto });
   }
 
   @Get('roles')
@@ -168,7 +169,7 @@ export class RbacController {
     const result = [];
 
     for (const role of roles) {
-      const rolePermissions = await this.prisma.rolePermission.findMany({
+      const rolePermissions = await this.prisma.extended.rolePermission.findMany({
         where: { role: role as any },
         include: { permission: true },
       });
@@ -185,7 +186,7 @@ export class RbacController {
   @Post('role-permissions')
   @ApiOperation({ summary: 'Assign a permission to a role' })
   async assignPermission(@Body() dto: AssignPermissionDto) {
-    const result = await this.prisma.rolePermission.upsert({
+    const result = await this.prisma.extended.rolePermission.upsert({
       where: {
         role_permissionId: {
           role: dto.role as any,
@@ -198,7 +199,7 @@ export class RbacController {
       },
       update: {},
     });
-    await this.cacheManager.del(`rbac_permissions_${dto.role}`);
+    await this.cacheManager.del(rolePermissionsCacheKey(dto.role));
     return result;
   }
 
@@ -208,7 +209,7 @@ export class RbacController {
     @Param('role') role: string,
     @Param('permissionId', ParseIntPipe) permissionId: number,
   ) {
-    const result = await this.prisma.rolePermission.delete({
+    const result = await this.prisma.extended.rolePermission.delete({
       where: {
         role_permissionId: {
           role: role as any,
@@ -216,7 +217,7 @@ export class RbacController {
         },
       },
     });
-    await this.cacheManager.del(`rbac_permissions_${role}`);
+    await this.cacheManager.del(rolePermissionsCacheKey(role));
     return result;
   }
 
@@ -226,15 +227,15 @@ export class RbacController {
   })
   async seedDefaultPermissions() {
     // Create all predefined permissions
-    await this.prisma.permission.createMany({
+    await this.prisma.extended.permission.createMany({
       data: PERMISSION_DEFINITIONS,
       skipDuplicates: true,
     });
 
-    const permissions = await this.prisma.permission.findMany();
+    const permissions = await this.prisma.extended.permission.findMany();
 
     // Assign all permissions to ADMIN
-    await this.prisma.rolePermission.createMany({
+    await this.prisma.extended.rolePermission.createMany({
       data: permissions.map((p) => ({
         role: 'ADMIN' as any,
         permissionId: p.id,
@@ -262,7 +263,7 @@ export class RbacController {
     const staffPerms = permissions.filter((p) =>
       staffPermCodes.includes(p.code),
     );
-    await this.prisma.rolePermission.createMany({
+    await this.prisma.extended.rolePermission.createMany({
       data: staffPerms.map((p) => ({
         role: 'STAFF' as any,
         permissionId: p.id,
@@ -270,9 +271,9 @@ export class RbacController {
       skipDuplicates: true,
     });
 
-    await this.cacheManager.del('rbac_permissions_ADMIN');
-    await this.cacheManager.del('rbac_permissions_STAFF');
-    await this.cacheManager.del('rbac_permissions_USER');
+    await this.cacheManager.del(rolePermissionsCacheKey('ADMIN'));
+    await this.cacheManager.del(rolePermissionsCacheKey('STAFF'));
+    await this.cacheManager.del(rolePermissionsCacheKey('USER'));
 
     return {
       success: true,

@@ -74,7 +74,7 @@ export class ActivityLogService {
     if (!this.prisma) return;
 
     try {
-      await this.prisma.activityLog.create({
+      await this.prisma.extended.activityLog.create({
         data: {
           userId: params.userId,
           action: params.action,
@@ -104,8 +104,8 @@ export class ActivityLogService {
     if (action) where.action = action;
 
     const [total, logs] = await Promise.all([
-      this.prisma.activityLog.count({ where }),
-      this.prisma.activityLog.findMany({
+      this.prisma.extended.activityLog.count({ where }),
+      this.prisma.extended.activityLog.findMany({
         where,
         orderBy: { createdAt: 'desc' },
         skip,

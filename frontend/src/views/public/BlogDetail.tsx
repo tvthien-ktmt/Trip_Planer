@@ -7,7 +7,7 @@ import DOMPurify from 'isomorphic-dompurify';
 
 export default function BlogDetail() {
   const params = useParams();
-  const id = params?.id as string;
+  const slug = params?.slug as string;
   
   // Mock data for Blog Detail
   const post = {

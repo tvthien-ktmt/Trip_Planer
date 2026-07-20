@@ -3,6 +3,7 @@ import {
   NotFoundException,
   ConflictException,
   BadRequestException,
+  ForbiddenException,
 } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -12,6 +13,15 @@ import { randomBytes } from 'crypto';
 
 import { MembershipService } from '../membership/membership.service';
 import { encrypt } from '../../common/utils/encryption.util';
+
+export const BOOKING_TRANSITIONS: Record<string, string[]> = {
+  DRAFT: ['PENDING_PAYMENT', 'CANCELLED'],
+  PENDING_PAYMENT: ['CONFIRMED', 'CANCELLED'],
+  CONFIRMED: ['COMPLETED', 'CANCELLED'],
+  COMPLETED: [],
+  CANCELLED: [],
+};
+
 
 @Injectable()
 export class BookingService {
@@ -30,13 +40,13 @@ export class BookingService {
     while (!isUnique) {
       // BE-038 fix: Booking code should be 12 chars to prevent brute-forcing
       bookingCode = randomBytes(6).toString('hex').toUpperCase(); // 12 chars
-      const existing = await this.prisma.booking.findUnique({
+      const existing = await this.prisma.extended.booking.findUnique({
         where: { bookingCode },
       });
       if (!existing) isUnique = true;
     }
 
-    const booking = await this.prisma.booking.create({
+    const booking = await this.prisma.extended.booking.create({
       data: {
         userId,
         type,
@@ -55,14 +65,47 @@ export class BookingService {
     return booking;
   }
 
+  async verifyOwnership(bookingId: bigint, userId: bigint) {
+    const booking = await this.prisma.extended.booking.findUnique({
+      where: { id: bookingId },
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.userId !== userId) {
+      throw new ForbiddenException('You do not own this booking');
+    }
+    return booking;
+  }
+
+  async getBooking(bookingId: bigint, userId: bigint) {
+    await this.verifyOwnership(bookingId, userId);
+    return this.prisma.extended.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        passengers: true,
+        items: true,
+        statusHistory: true,
+        payment: {
+          select: {
+            id: true,
+            method: true,
+            amount: true,
+            status: true,
+            transactionRef: true,
+            createdAt: true,
+          },
+        },
+      },
+    });
+  }
+
   async selectSeatForPassenger(bookingId: bigint, passengerId: bigint, seatId: bigint, currentVersion: number) {
-    const booking = await this.prisma.booking.findUnique({
+    const booking = await this.prisma.extended.booking.findUnique({
       where: { id: bookingId },
     });
     if (!booking || booking.status !== 'DRAFT')
       throw new BadRequestException('Booking is not in draft state');
 
-    return this.prisma.$transaction(async (tx) => {
+    return this.prisma.extended.$transaction(async (tx) => {
       const result = await tx.flightSeat.updateMany({
         where: {
           id: seatId,
@@ -98,14 +141,14 @@ export class BookingService {
   }
 
   async applyVoucher(bookingId: bigint, code: string, userId: bigint) {
-    const booking = await this.prisma.booking.findUnique({
+    const booking = await this.prisma.extended.booking.findUnique({
       where: { id: bookingId },
       include: { items: true, passengers: true },
     });
     if (!booking || booking.status !== 'DRAFT')
       throw new BadRequestException('Invalid booking');
 
-    const voucher = await this.prisma.voucher.findUnique({ where: { code } });
+    const voucher = await this.prisma.extended.voucher.findUnique({ where: { code } });
     if (!voucher) throw new BadRequestException('Mã giảm giá không hợp lệ');
 
     const now = new Date();
@@ -119,13 +162,13 @@ export class BookingService {
     await this.recalculateTotal(bookingId); // Ensure total is fresh
 
     let finalDiscount = 0;
-    await this.prisma.$transaction(async (tx) => {
+    await this.prisma.extended.$transaction(async (tx) => {
       const currentBooking = await tx.booking.findUnique({
         where: { id: bookingId },
       });
       if (!currentBooking) throw new BadRequestException('Booking not found');
 
-      if (currentBooking.totalAmount < voucher.minOrderAmount) {
+      if (currentBooking.totalAmount.lessThan(voucher.minOrderAmount)) {
         throw new BadRequestException(
           `Đơn hàng phải từ ${voucher.minOrderAmount} để áp dụng mã này`,
         );
@@ -200,7 +243,13 @@ export class BookingService {
   }
 
   async recalculateTotal(bookingId: bigint) {
-    const booking = await this.prisma.booking.findUnique({
+    return this.prisma.extended.$transaction(async (tx) => {
+      return this.recalculateTotalWithTx(tx, bookingId);
+    });
+  }
+
+  async recalculateTotalWithTx(tx: any, bookingId: bigint) {
+    const booking = await tx.booking.findUnique({
       where: { id: bookingId },
       include: {
         passengers: true,
@@ -211,19 +260,19 @@ export class BookingService {
     if (!booking) return;
 
     let total = new Prisma.Decimal(0);
-    const seatIds = booking.passengers.map(p => p.seatId).filter(id => id != null) as bigint[];
+    const seatIds = booking.passengers.map((p: any) => p.seatId).filter((id: any) => id != null) as bigint[];
     
     if (seatIds.length > 0) {
-      const seats = await this.prisma.flightSeat.findMany({
+      const seats = await tx.flightSeat.findMany({
         where: { id: { in: seatIds } },
       });
-      const fareClassIds = seats.map(s => s.fareClassId);
-      const fareClasses = await this.prisma.flightFareClass.findMany({
+      const fareClassIds = seats.map((s: any) => s.fareClassId);
+      const fareClasses = await tx.flightFareClass.findMany({
         where: { id: { in: fareClassIds } },
       });
       
       for (const seat of seats) {
-        const fareClass = fareClasses.find(fc => fc.id === seat.fareClassId);
+        const fareClass = fareClasses.find((fc: any) => fc.id === seat.fareClassId);
         if (fareClass) {
           total = total.plus(fareClass.basePrice).plus(seat.extraFee);
         }
@@ -235,7 +284,7 @@ export class BookingService {
       total = total.plus(item.subtotal);
     }
 
-    await this.prisma.booking.update({
+    await tx.booking.update({
       where: { id: bookingId },
       data: { totalAmount: total },
     });
@@ -244,18 +293,11 @@ export class BookingService {
   }
 
   canTransition(from: string, to: string): boolean {
-    const transitions: Record<string, string[]> = {
-      DRAFT: ['PENDING_PAYMENT', 'CANCELLED'],
-      PENDING_PAYMENT: ['CONFIRMED', 'CANCELLED'],
-      CONFIRMED: ['COMPLETED', 'CANCELLED'],
-      COMPLETED: [],
-      CANCELLED: [],
-    };
-    return transitions[from]?.includes(to);
+    return BOOKING_TRANSITIONS[from]?.includes(to);
   }
 
   async updateBookingStatus(bookingId: bigint, newStatus: any, userId: bigint) {
-    await this.prisma.$transaction(async (tx) => {
+    await this.prisma.extended.$transaction(async (tx) => {
       await this.updateBookingStatusWithTx(tx, bookingId, newStatus, userId);
     });
 
@@ -298,12 +340,30 @@ export class BookingService {
         booking.totalAmount.toNumber(),
         bookingId,
       );
+    } else if (newStatus === 'CONFIRMED') {
+      const payment = await tx.payment.findUnique({ where: { bookingId } });
+      if (!payment || payment.status !== 'SUCCESS') {
+        throw new BadRequestException('Cannot confirm booking without successful payment');
+      }
+
+      // R3-BE-004: Transition seats from LOCKED to BOOKED
+      const passengers = await tx.bookingPassenger.findMany({
+        where: { bookingId },
+        select: { seatId: true },
+      });
+      const seatIds = passengers.map((p: any) => p.seatId).filter(Boolean) as bigint[];
+      if (seatIds.length > 0) {
+        await tx.flightSeat.updateMany({
+          where: { id: { in: seatIds }, status: 'LOCKED' },
+          data: { status: 'BOOKED', version: { increment: 1 } },
+        });
+      }
     }
   }
 
   async updatePassengers(bookingId: bigint, passengers: any[]) {
     // BE-012 fix: Actually persist passengers to database
-    const booking = await this.prisma.booking.findUnique({
+    const booking = await this.prisma.extended.booking.findUnique({
       where: { id: bookingId },
       include: { passengers: true },
     });
@@ -312,12 +372,12 @@ export class BookingService {
       throw new BadRequestException('Cannot update passengers for non-draft booking');
     }
 
-    const createdPassengers = await this.prisma.$transaction(async (tx) => {
+    const createdPassengers = await this.prisma.extended.$transaction(async (tx) => {
       await tx.bookingPassenger.deleteMany({
         where: { bookingId },
       });
 
-      return await Promise.all(
+      const passengersResult = await Promise.all(
         passengers.map((p) =>
           tx.bookingPassenger.create({
             data: {
@@ -325,15 +385,18 @@ export class BookingService {
               fullName: p.fullName || p.name || '',
               dateOfBirth: p.dateOfBirth ? new Date(p.dateOfBirth) : null,
               nationality: p.nationality || null,
-              passportNo: (p.passportNo || p.passport) ? encrypt(p.passportNo || p.passport) : null,
+              passportNo: (p.passportNo || p.passport) || null,
               fareClassId: p.fareClassId ? BigInt(p.fareClassId) : null,
             },
           }),
         ),
       );
-    });
 
-    await this.recalculateTotal(bookingId);
+      // BE-017/018 fix: updatePassengers in transaction + call recalculateTotal
+      await this.recalculateTotalWithTx(tx, bookingId);
+      
+      return passengersResult;
+    });
 
     return { success: true, passengers: createdPassengers };
   }

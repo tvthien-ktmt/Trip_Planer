@@ -1,42 +1,28 @@
 import { create } from 'zustand';
 
-export interface AppNotification {
-  id: string;
+interface Notification {
+  id: string | number;
   title: string;
-  message: string;
-  type: 'info' | 'success' | 'warning' | 'error';
-  isRead: boolean;
-  createdAt: number;
+  body: string;
+  type: string;
+  readAt?: string | null;
 }
 
 interface NotificationState {
-  notifications: AppNotification[];
-  addNotification: (notification: Omit<AppNotification, 'id' | 'isRead' | 'createdAt'>) => void;
-  markAsRead: (id: string) => void;
-  markAllAsRead: () => void;
-  clearAll: () => void;
+  notifications: Notification[];
+  setNotifications: (notifications: Notification[]) => void;
+  addNotification: (notification: Notification) => void;
+  markAsRead: (id: string | number) => void;
 }
 
 export const useNotificationStore = create<NotificationState>((set) => ({
-  notifications: [],
-  addNotification: (notif) => set((state) => ({
-    notifications: [
-      {
-        ...notif,
-        id: `notif-${crypto.randomUUID()}`,
-        isRead: false,
-        createdAt: Date.now(),
-      },
-      ...state.notifications,
-    ],
-  })),
+  notifications: [
+    { id: 1, type: "PROMOTION", title: "Ưu đãi 20% Tour Đà Lạt", body: "Áp dụng cho booking nhóm 4 người trở lên." },
+    { id: 2, type: "SYSTEM", title: "Booking #TRIP123 thành công", body: "Cảm ơn bạn đã đặt tour. Vui lòng kiểm tra email." }
+  ],
+  setNotifications: (notifications) => set({ notifications }),
+  addNotification: (notification) => set((state) => ({ notifications: [notification, ...state.notifications] })),
   markAsRead: (id) => set((state) => ({
-    notifications: state.notifications.map((n) =>
-      n.id === id ? { ...n, isRead: true } : n
-    ),
+    notifications: state.notifications.map((n) => n.id === id ? { ...n, readAt: new Date().toISOString() } : n)
   })),
-  markAllAsRead: () => set((state) => ({
-    notifications: state.notifications.map((n) => ({ ...n, isRead: true })),
-  })),
-  clearAll: () => set({ notifications: [] }),
 }));

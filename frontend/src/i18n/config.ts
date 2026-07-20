@@ -19,16 +19,14 @@ i18n
   });
 
 // Subscribe to store changes only on client
-if (typeof window !== 'undefined') {
-  const language = useUIStore.getState().language;
-  if (language) {
-    i18n.changeLanguage(language);
-  }
-  useUIStore.subscribe((state, prevState) => {
-    if (state.language !== prevState.language) {
-      i18n.changeLanguage(state.language);
-    }
-  });
+const language = useUIStore.getState().language;
+if (language) {
+  i18n.changeLanguage(language);
 }
+useUIStore.subscribe((state, prevState) => {
+  if (state.language !== prevState.language) {
+    i18n.changeLanguage(state.language);
+  }
+});
 
 export default i18n;

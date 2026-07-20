@@ -10,7 +10,7 @@ import {
   BadRequestException,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
-import { RolesGuard } from '../../common/guards/roles.guard';
+import { AuthorizationGuard } from '../../common/guards/authorization.guard';
 import { Roles } from '../../common/decorators/roles.decorator';
 import { AuditLogInterceptor } from '../../common/interceptors/audit-log.interceptor';
 import { PrismaService } from '../../prisma/prisma.service';
@@ -27,7 +27,7 @@ class UpdateBookingStatusDto {
 
 @ApiTags('Admin')
 @Controller('api/admin')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, AuthorizationGuard)
 @Roles('ADMIN')
 @UseInterceptors(AuditLogInterceptor)
 @ApiBearerAuth()
@@ -44,12 +44,12 @@ export class AdminController {
     @Query('limit') limit?: number,
   ) {
     const pageNum = Number(page) || 1;
-    const limitNum = Number(limit) || 20;
+    const limitNum = Math.min(Number(limit) || 20, 200);
     const skip = (pageNum - 1) * limitNum;
 
     const [total, data] = await Promise.all([
-      this.prisma.booking.count(),
-      this.prisma.booking.findMany({
+      this.prisma.extended.booking.count(),
+      this.prisma.extended.booking.findMany({
         skip,
         take: limitNum,
         include: {
@@ -88,7 +88,7 @@ export class AdminController {
     @CurrentUser() user: any,
   ) {
     // BE-042 fix: Use BookingService state machine, not hardcoded 'CONFIRMED'
-    const booking = await this.prisma.booking.findUnique({
+    const booking = await this.prisma.extended.booking.findUnique({
       where: { id: BigInt(id) },
     });
     if (!booking) throw new BadRequestException('Booking not found');
@@ -99,21 +99,8 @@ export class AdminController {
       );
     }
 
-    await this.prisma.$transaction([
-      this.prisma.booking.update({
-        where: { id: BigInt(id) },
-        data: { status: dto.status as any },
-      }),
-      this.prisma.bookingStatusHistory.create({
-        data: {
-          bookingId: BigInt(id),
-          fromStatus: booking.status,
-          toStatus: dto.status,
-          changedBy: user.id,
-          reason: 'Admin status update',
-        },
-      }),
-    ]);
+    // BE-037: Admin `updateBookingStatus` use service method to ensure history & points
+    await this.bookingService.updateBookingStatus(BigInt(id), dto.status, user.id);
 
     return { success: true, status: dto.status };
   }
@@ -131,8 +118,8 @@ export class AdminController {
     const skip = (pageNum - 1) * limitNum;
 
     const [total, data] = await Promise.all([
-      this.prisma.auditLog.count(),
-      this.prisma.auditLog.findMany({
+      this.prisma.extended.auditLog.count(),
+      this.prisma.extended.auditLog.findMany({
         skip,
         take: limitNum,
         orderBy: { createdAt: 'desc' },

@@ -6,7 +6,7 @@ export class UserService {
   constructor(private prisma: PrismaService) {}
 
   async getProfile(userId: bigint) {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.extended.user.findUnique({
       where: { id: userId },
       select: {
         id: true,
@@ -34,7 +34,7 @@ export class UserService {
       // Validate or resize logic (placeholder for actual implementation)
     }
 
-    return this.prisma.user.update({
+    return this.prisma.extended.user.update({
       where: { id: userId },
       data: {
         fullName: data.fullName,
@@ -43,6 +43,17 @@ export class UserService {
         dateOfBirth: data.dateOfBirth ? new Date(data.dateOfBirth) : undefined,
         nationalId: data.nationalId,
         passportNo: data.passportNo,
+      },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        phone: true,
+        avatarUrl: true,
+        dateOfBirth: true,
+        role: true,
+        status: true,
+        createdAt: true,
       },
     });
   }

@@ -14,7 +14,8 @@ export default function ForgotPassword() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      const response = await fetch('http://localhost:3000/api/auth/send-otp', {
+      const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
+      const response = await fetch(`${apiUrl}/auth/send-otp`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ email, purpose: 'RESET_PASSWORD' }),

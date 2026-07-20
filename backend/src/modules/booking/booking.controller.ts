@@ -17,8 +17,6 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { IsString, IsNotEmpty, IsArray, ValidateNested, IsOptional, IsNumber, Min, Max, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
-import { PrismaService } from '../../prisma/prisma.service';
-
 import { BookingType, BookingStatus } from '@prisma/client';
 
 // BE-020: Add proper DTOs
@@ -89,20 +87,7 @@ class UpdateStatusDto {
 export class BookingController {
   constructor(
     private readonly bookingService: BookingService,
-    private readonly prisma: PrismaService,
   ) {}
-
-  // BE-008 fix: Helper to verify ownership
-  private async verifyOwnership(bookingId: bigint, userId: bigint) {
-    const booking = await this.prisma.booking.findUnique({
-      where: { id: bookingId },
-    });
-    if (!booking) throw new NotFoundException('Booking not found');
-    if (booking.userId !== userId) {
-      throw new ForbiddenException('You do not own this booking');
-    }
-    return booking;
-  }
 
   @Post()
   @ApiOperation({ summary: 'Create DRAFT booking' })
@@ -121,7 +106,7 @@ export class BookingController {
     @CurrentUser() user: any,
   ) {
     // BE-008: Verify ownership before selecting seat
-    await this.verifyOwnership(BigInt(id), user.id);
+    await this.bookingService.verifyOwnership(BigInt(id), user.id);
     return this.bookingService.selectSeatForPassenger(BigInt(id), BigInt(dto.passengerId), BigInt(dto.seatId), dto.version);
   }
 
@@ -133,7 +118,7 @@ export class BookingController {
     @CurrentUser() user: any,
   ) {
     // BE-008: Verify ownership
-    await this.verifyOwnership(BigInt(id), user.id);
+    await this.bookingService.verifyOwnership(BigInt(id), user.id);
     return this.bookingService.updatePassengers(BigInt(id), dto.passengers);
   }
 
@@ -145,7 +130,7 @@ export class BookingController {
     @CurrentUser() user: any,
   ) {
     // BE-008: Verify ownership
-    await this.verifyOwnership(BigInt(id), user.id);
+    await this.bookingService.verifyOwnership(BigInt(id), user.id);
     return this.bookingService.applyVoucher(BigInt(id), dto.code, user.id);
   }
 
@@ -157,7 +142,18 @@ export class BookingController {
     @CurrentUser() user: any,
   ) {
     // BE-008: Verify ownership
-    await this.verifyOwnership(BigInt(id), user.id);
+    await this.bookingService.verifyOwnership(BigInt(id), user.id);
+    
+    // R3-BE-001: Prevent user from manually transitioning to CONFIRMED or COMPLETED
+    const USER_ALLOWED_TRANSITIONS = ['CANCELLED'];
+
+    if (!USER_ALLOWED_TRANSITIONS.includes(dto.status as string)) {
+      throw new ForbiddenException(
+        `Users cannot transition booking to "${dto.status}". ` +
+        `Only "${USER_ALLOWED_TRANSITIONS.join(', ')}" is allowed for user-initiated transitions.`
+      );
+    }
+
     return this.bookingService.updateBookingStatus(BigInt(id), dto.status, user.id);
   }
 
@@ -167,25 +163,6 @@ export class BookingController {
     @Param('id') id: string,
     @CurrentUser() user: any,
   ) {
-    // BE-008: Verify ownership before fetching details
-    const booking = await this.verifyOwnership(BigInt(id), user.id);
-    return this.prisma.booking.findUnique({
-      where: { id: BigInt(id) },
-      include: {
-        passengers: true,
-        items: true,
-        statusHistory: true,
-        payment: {
-          select: {
-            id: true,
-            method: true,
-            amount: true,
-            status: true,
-            transactionRef: true,
-            createdAt: true,
-          },
-        },
-      },
-    });
+    return this.bookingService.getBooking(BigInt(id), user.id);
   }
 }

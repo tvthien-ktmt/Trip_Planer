@@ -3,10 +3,10 @@ import { Plane, Users, CheckCircle, Ticket } from "lucide-react";
 import { RouteLine } from "../ui/RouteLine";
 
 export const BookingSummarySidebar = () => {
-  const { outboundFareClass, passengerInfo, selectedSeats } = useBookingFlowStore();
+  const { outboundFareClass, passengerInfo, selectedSeats, selectedFlightPricing } = useBookingFlowStore();
 
   const paxCount = Math.max(1, passengerInfo.length);
-  const basePricePerPax = outboundFareClass === 'Business' ? 3000000 : 1500000;
+  const basePricePerPax = selectedFlightPricing || 1500000;
   const basePrice = basePricePerPax * paxCount;
   const numPassengers = Math.max(1, passengerInfo.length);
   const seatsPrice = Object.keys(selectedSeats).length * 150000; // Demo

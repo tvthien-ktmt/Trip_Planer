@@ -12,7 +12,7 @@ export class BookingExpiryProcessor extends WorkerHost {
     if (job.name === 'booking-expiry') {
       const { bookingId } = job.data;
 
-      const booking = await this.prisma.booking.findUnique({
+      const booking = await this.prisma.extended.booking.findUnique({
         where: { id: BigInt(bookingId) },
         include: { passengers: true },
       });
@@ -21,7 +21,7 @@ export class BookingExpiryProcessor extends WorkerHost {
         booking &&
         (booking.status === 'DRAFT' || booking.status === 'PENDING_PAYMENT')
       ) {
-        await this.prisma.$transaction(async (tx) => {
+        await this.prisma.extended.$transaction(async (tx) => {
           // Conditional cancel
           const result = await tx.booking.updateMany({
             where: { id: booking.id, status: { in: ['DRAFT', 'PENDING_PAYMENT'] } },
@@ -48,7 +48,7 @@ export class BookingExpiryProcessor extends WorkerHost {
 
           if (lockedSeatIds.length > 0) {
             await tx.flightSeat.updateMany({
-              where: { id: { in: lockedSeatIds as bigint[] } },
+              where: { id: { in: lockedSeatIds as bigint[] }, status: 'LOCKED' },
               data: { status: 'AVAILABLE', version: { increment: 1 } },
             });
           }

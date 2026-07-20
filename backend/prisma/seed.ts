@@ -238,19 +238,32 @@ async function main() {
     const firstName = randomItem(firstNames);
     const lastName = randomItem(middleLastNames);
     const num = String(i).padStart(3, '0');
+    const status = i % 20 === 0 ? 'LOCKED' : 'ACTIVE';
     const user = await prisma.user.create({
       data: {
         email: `user${num}@example.com`,
         passwordHash: userPasswordHash,
         fullName: `${firstName} ${lastName}`,
         role: 'USER',
-        status: i % 20 === 0 ? 'LOCKED' : 'ACTIVE',
+        status,
         emailVerifiedAt: new Date(),
         phone: `090${randomInt(1000000, 9999999)}`,
         dateOfBirth: randomDate(new Date('1980-01-01'), new Date('2000-12-31')),
         createdAt: randomDate(new Date('2024-01-01'), new Date('2026-07-01')),
       },
     });
+
+    if (status === 'LOCKED') {
+      await prisma.activityLog.create({
+        data: {
+          userId: user.id,
+          action: 'USER_ACCOUNT_LOCKED',
+          description: 'Tài khoản bị khóa tự động',
+          ipAddress: '127.0.0.1',
+        }
+      });
+    }
+
     regularUsers.push(user);
   }
   console.log(`✅ Seeded ${regularUsers.length + 2} users`);

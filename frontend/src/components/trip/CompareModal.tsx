@@ -3,6 +3,7 @@ import { X, Check } from 'lucide-react';
 import { PriceTag } from '../common/PriceTag';
 import { RatingStars } from '../common/RatingStars';
 import { useRouter } from 'next/navigation';
+import { routes } from '../../lib/routes';
 
 export const CompareModal = () => {
   const navigate = useRouter();
@@ -72,7 +73,7 @@ export const CompareModal = () => {
                   <button 
                     onClick={() => {
                       setCompareModalOpen(false);
-                      navigate.push(`/tours/${tour.id}`);
+                      navigate.push(routes.tourDetail(tour.id));
                     }}
                     className="mt-6 w-full py-2.5 bg-blue-50 hover:bg-blue-100 dark:bg-blue-900/20 dark:hover:bg-blue-900/40 text-blue-600 dark:text-blue-400 font-semibold rounded-xl transition-colors"
                   >

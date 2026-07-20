@@ -26,12 +26,12 @@ export class NotificationService {
     body: string,
   ) {
     if (userId === null) {
-      return this.prisma.notification.create({
+      return this.prisma.extended.notification.create({
         data: { title, body, type },
       });
     }
 
-    return this.prisma.notification.create({
+    return this.prisma.extended.notification.create({
       data: { userId, title, body, type },
     });
   }

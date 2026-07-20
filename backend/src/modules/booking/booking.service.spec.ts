@@ -15,21 +15,25 @@ describe('BookingService', () => {
         BookingService,
         {
           provide: PrismaService,
-          useValue: {
-            $transaction: jest.fn(async (cb) => cb(prisma)),
-            booking: {
-              findUnique: jest
-                .fn()
-                .mockResolvedValue({ id: 1n, status: 'DRAFT' }),
-            },
-            flightSeat: {
-              updateMany: jest.fn(),
-            },
-            bookingPassenger: {
-              findFirst: jest.fn().mockResolvedValue({ id: 1n, bookingId: 1n }),
-              update: jest.fn(),
-            },
-          },
+          useValue: (() => {
+            const m: any = {
+              $transaction: jest.fn(async (cb) => cb(prisma)),
+              booking: {
+                findUnique: jest
+                  .fn()
+                  .mockResolvedValue({ id: 1n, status: 'DRAFT' }),
+              },
+              flightSeat: {
+                updateMany: jest.fn(),
+              },
+              bookingPassenger: {
+                findFirst: jest.fn().mockResolvedValue({ id: 1n, bookingId: 1n }),
+                update: jest.fn(),
+              },
+            };
+            m.extended = m;
+            return m;
+          })(),
         },
         {
           provide: getQueueToken('booking'),
@@ -54,7 +58,7 @@ describe('BookingService', () => {
     it('should reject second concurrent seat lock with ConflictException due to version mismatch', async () => {
       // Mock for Request 1: succeeds (finds the record with version 0) -> returns count 1
       // Mock for Request 2: fails (record version is already 1, WHERE version=0 matches 0 rows) -> returns count 0
-      (prisma.flightSeat.updateMany as jest.Mock)
+      ((prisma as any).flightSeat.updateMany as jest.Mock)
         .mockResolvedValueOnce({ count: 1 })
         .mockResolvedValueOnce({ count: 0 });
 
@@ -87,12 +91,12 @@ describe('BookingService', () => {
       }
 
       // Assert updateMany was called exactly twice with the exact same condition (version: 0)
-      expect(prisma.flightSeat.updateMany).toHaveBeenCalledTimes(2);
-      expect(prisma.flightSeat.updateMany).toHaveBeenNthCalledWith(1, {
+      expect((prisma as any).flightSeat.updateMany).toHaveBeenCalledTimes(2);
+      expect((prisma as any).flightSeat.updateMany).toHaveBeenNthCalledWith(1, {
         where: { id: seatId, version: currentVersion, status: 'AVAILABLE' },
         data: { status: 'LOCKED', version: { increment: 1 } },
       });
-      expect(prisma.flightSeat.updateMany).toHaveBeenNthCalledWith(2, {
+      expect((prisma as any).flightSeat.updateMany).toHaveBeenNthCalledWith(2, {
         where: { id: seatId, version: currentVersion, status: 'AVAILABLE' },
         data: { status: 'LOCKED', version: { increment: 1 } },
       });

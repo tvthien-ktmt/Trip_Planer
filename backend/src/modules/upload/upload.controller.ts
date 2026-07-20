@@ -12,7 +12,7 @@ import {
   Query,
 } from '@nestjs/common';
 import { FileInterceptor, FilesInterceptor } from '@nestjs/platform-express';
-import { memoryStorage } from 'multer';
+import { diskStorage } from 'multer';
 import { extname, join } from 'path';
 import { v4 as uuidv4 } from 'uuid';
 import * as fs from 'fs';
@@ -36,7 +36,17 @@ const ALLOWED_MIME_TYPES = [
 ];
 const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5MB
 
-const createStorage = () => memoryStorage();
+const createStorage = (folder: string) => diskStorage({
+  destination: (req, file, cb) => {
+    const folderPath = join(process.cwd(), 'uploads', folder);
+    fs.mkdirSync(folderPath, { recursive: true });
+    cb(null, folderPath);
+  },
+  filename: (req, file, cb) => {
+    const uniqueName = `${uuidv4()}${extname(file.originalname).toLowerCase()}`;
+    cb(null, uniqueName);
+  },
+});
 
 const imageFilter = (_req: any, file: Express.Multer.File, cb: any) => {
   if (!ALLOWED_MIME_TYPES.includes(file.mimetype)) {
@@ -62,7 +72,11 @@ const imageFilter = (_req: any, file: Express.Multer.File, cb: any) => {
 };
 
 // BE-043 fix: Validate magic bytes to prevent spoofing
-async function validateImageSignature(buffer: Buffer): Promise<boolean> {
+async function validateImageSignature(filePath: string): Promise<boolean> {
+  const handle = await fs.promises.open(filePath, 'r');
+  const buffer = Buffer.alloc(12);
+  await handle.read(buffer, 0, 12, 0);
+  await handle.close();
   const hex = buffer.toString('hex', 0, 12).toUpperCase();
 
   // JPEG: FF D8 FF
@@ -95,7 +109,7 @@ export class UploadController {
   })
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: createStorage(),
+      storage: createStorage('avatars'),
       fileFilter: imageFilter,
       limits: { fileSize: MAX_FILE_SIZE },
     }),
@@ -107,26 +121,22 @@ export class UploadController {
     if (!file) throw new BadRequestException('No file uploaded');
 
     // BE-043 fix: validate magic bytes
-    const isValid = await validateImageSignature(file.buffer);
+    const isValid = await validateImageSignature(file.path);
     if (!isValid) {
+      await fs.promises.unlink(file.path);
       throw new BadRequestException('Invalid file signature (spoofed extension detected)');
     }
 
-    const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
-    const folderPath = join(process.cwd(), 'uploads', 'avatars');
-    await fs.promises.mkdir(folderPath, { recursive: true });
-    await fs.promises.writeFile(join(folderPath, uniqueName), file.buffer);
-
-    const fileUrl = `/uploads/avatars/${uniqueName}`;
+    const fileUrl = `/uploads/avatars/${file.filename}`;
 
     // Update user avatarUrl
-    await this.prisma.user.update({
+    await this.prisma.extended.user.update({
       where: { id: user.id },
       data: { avatarUrl: fileUrl },
     });
 
     // Record in MediaFile
-    const mediaFile = await this.prisma.mediaFile.create({
+    const mediaFile = await this.prisma.extended.mediaFile.create({
       data: {
         fileName: file.originalname,
         fileUrl,
@@ -156,7 +166,7 @@ export class UploadController {
   })
   @UseInterceptors(
     FileInterceptor('file', {
-      storage: createStorage(),
+      storage: createStorage('blog'),
       fileFilter: imageFilter,
       limits: { fileSize: MAX_FILE_SIZE },
     }),
@@ -168,19 +178,15 @@ export class UploadController {
     if (!file) throw new BadRequestException('No file uploaded');
 
     // BE-043 fix: validate magic bytes
-    const isValid = await validateImageSignature(file.buffer);
+    const isValid = await validateImageSignature(file.path);
     if (!isValid) {
+      await fs.promises.unlink(file.path);
       throw new BadRequestException('Invalid file signature');
     }
 
-    const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
-    const folderPath = join(process.cwd(), 'uploads', 'blog');
-    await fs.promises.mkdir(folderPath, { recursive: true });
-    await fs.promises.writeFile(join(folderPath, uniqueName), file.buffer);
+    const fileUrl = `/uploads/blog/${file.filename}`;
 
-    const fileUrl = `/uploads/blog/${uniqueName}`;
-
-    const mediaFile = await this.prisma.mediaFile.create({
+    const mediaFile = await this.prisma.extended.mediaFile.create({
       data: {
         fileName: file.originalname,
         fileUrl,
@@ -216,7 +222,7 @@ export class UploadController {
   })
   @UseInterceptors(
     FilesInterceptor('files', 10, {
-      storage: createStorage(),
+      storage: createStorage('gallery'),
       fileFilter: imageFilter,
       limits: { fileSize: MAX_FILE_SIZE },
     }),
@@ -231,22 +237,19 @@ export class UploadController {
 
     // Validate all signatures first
     for (const file of files) {
-      const isValid = await validateImageSignature(file.buffer);
+      const isValid = await validateImageSignature(file.path);
       if (!isValid) {
+        // cleanup all files
+        for (const f of files) await fs.promises.unlink(f.path).catch(() => {});
         throw new BadRequestException(`Invalid file signature detected in file: ${file.originalname}`);
       }
     }
 
-    const folderPath = join(process.cwd(), 'uploads', 'gallery');
-    await fs.promises.mkdir(folderPath, { recursive: true });
-
     const results = await Promise.all(
       files.map(async (file) => {
-        const uniqueName = `${uuidv4()}${extname(file.originalname)}`;
-        await fs.promises.writeFile(join(folderPath, uniqueName), file.buffer);
-        const fileUrl = `/uploads/gallery/${uniqueName}`;
+        const fileUrl = `/uploads/gallery/${file.filename}`;
 
-        const mediaFile = await this.prisma.mediaFile.create({
+        const mediaFile = await this.prisma.extended.mediaFile.create({
           data: {
             fileName: file.originalname,
             fileUrl,
@@ -286,8 +289,8 @@ export class UploadController {
     if (folder) where.folderPath = folder;
 
     const [total, files] = await Promise.all([
-      this.prisma.mediaFile.count({ where }),
-      this.prisma.mediaFile.findMany({
+      this.prisma.extended.mediaFile.count({ where }),
+      this.prisma.extended.mediaFile.findMany({
         where,
         skip,
         take: Number(limit) || 20,
@@ -314,7 +317,7 @@ export class UploadController {
   @Delete('media/:id')
   @ApiOperation({ summary: 'Delete an uploaded file' })
   async deleteMedia(@Param('id') id: string, @CurrentUser() user: any) {
-    const file = await this.prisma.mediaFile.findUnique({
+    const file = await this.prisma.extended.mediaFile.findUnique({
       where: { id: BigInt(id) },
     });
     if (!file) throw new BadRequestException('File not found');
@@ -333,7 +336,7 @@ export class UploadController {
         });
       }
     }
-    await this.prisma.mediaFile.delete({ where: { id: BigInt(id) } });
+    await this.prisma.extended.mediaFile.delete({ where: { id: BigInt(id) } });
 
     return { success: true, message: 'File deleted' };
   }

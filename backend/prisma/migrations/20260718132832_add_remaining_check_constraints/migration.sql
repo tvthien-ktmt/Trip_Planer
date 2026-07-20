@@ -1,0 +1,18 @@
+ALTER TABLE `Booking` ADD CONSTRAINT `chk_total_amount_nonneg` CHECK (`totalAmount` >= 0);
+ALTER TABLE `Booking` ADD CONSTRAINT `chk_expires_after_created` CHECK (`expiresAt` IS NULL OR `expiresAt` > `createdAt`);
+ALTER TABLE `Payment` ADD CONSTRAINT `chk_amount_positive` CHECK (`amount` > 0);
+ALTER TABLE `Review` ADD CONSTRAINT `chk_rating_range` CHECK (`rating` BETWEEN 1 AND 5);
+ALTER TABLE `FlightSeat` ADD CONSTRAINT `chk_version_nonneg` CHECK (`version` >= 0);
+ALTER TABLE `OtpCode` ADD CONSTRAINT `chk_attempts_range` CHECK (`attempts` BETWEEN 0 AND 5);
+ALTER TABLE `Tour` ADD CONSTRAINT `chk_discount_percent_range` CHECK (`discountPercent` BETWEEN 0 AND 100);
+ALTER TABLE `Tour` ADD CONSTRAINT `chk_rating_avg_range` CHECK (`ratingAvg` BETWEEN 0 AND 5);
+ALTER TABLE `Tour` ADD CONSTRAINT `chk_duration_positive` CHECK (`durationDays` > 0);
+ALTER TABLE `Voucher` ADD CONSTRAINT `chk_discount_value_positive` CHECK (`discountValue` > 0);
+ALTER TABLE `Voucher` ADD CONSTRAINT `chk_valid_period` CHECK (`validTo` > `validFrom`);
+ALTER TABLE `Voucher` ADD CONSTRAINT `chk_used_count_limit` CHECK (`usageLimit` IS NULL OR `usedCount` <= `usageLimit`);
+ALTER TABLE `UserPoints` ADD CONSTRAINT `chk_points_nonneg` CHECK (`pointsBalance` >= 0);
+ALTER TABLE `Aircraft` ADD CONSTRAINT `chk_total_seats_positive` CHECK (`totalSeats` > 0);
+ALTER TABLE `FlightFareClass` ADD CONSTRAINT `chk_avail_seats_nonneg` CHECK (`availableSeats` >= 0);
+ALTER TABLE `FlightFareClass` ADD CONSTRAINT `chk_baggage_nonneg` CHECK (`baggageAllowanceKg` >= 0);
+ALTER TABLE `Refund` ADD CONSTRAINT `chk_refund_amount_positive` CHECK (`amount` > 0);
+ALTER TABLE `UserSession` ADD CONSTRAINT `chk_session_expires` CHECK (`expiresAt` > `createdAt`);

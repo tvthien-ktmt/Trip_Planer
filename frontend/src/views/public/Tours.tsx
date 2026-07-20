@@ -15,6 +15,7 @@ import { CompareBar } from '../../components/trip/CompareBar';
 import { useTranslation } from 'react-i18next';
 import { Card } from '../../components/common/Card';
 import { Button } from '../../components/ui/Button';
+import { routes } from '../../lib/routes';
 
 export default function Tours() {
   const { t } = useTranslation();
@@ -242,7 +243,7 @@ export default function Tours() {
                       ) : undefined}
                     >
                       <div className="flex justify-between items-start mb-2">
-                        <Link href={`/tours/${tour.id}`} className="flex-1">
+                        <Link href={routes.tourDetail(tour.id)} className="flex-1">
                           <h3 className="font-display font-semibold text-[var(--text-primary)] hover:text-[var(--color-ocean-600)] transition-custom"
                             style={{ fontSize: "var(--text-heading)" }}>
                             {tour.title}

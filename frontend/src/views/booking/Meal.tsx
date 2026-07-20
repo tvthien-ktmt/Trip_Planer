@@ -4,12 +4,14 @@ import { useRouter } from 'next/navigation';
 import { useBookingFlowStore } from '../../stores';
 import { Coffee } from 'lucide-react';
 
+import { BookingStep } from '../../types';
+
 export default function Meal() {
   const navigate = useRouter();
   const { setStep, updateBookingData, meals } = useBookingFlowStore();
 
   useEffect(() => {
-    setStep(5);
+    setStep(BookingStep.MEAL);
   }, [setStep]);
 
   const options = [

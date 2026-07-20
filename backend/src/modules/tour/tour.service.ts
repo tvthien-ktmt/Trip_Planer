@@ -35,14 +35,14 @@ export class TourService {
     else orderBy = { id: 'desc' }; // default
 
     const [tours, total] = await Promise.all([
-      this.prisma.tour.findMany({
+      this.prisma.extended.tour.findMany({
         where: whereClause,
         orderBy,
         skip,
         take: limit,
         include: { images: true },
       }),
-      this.prisma.tour.count({ where: whereClause }),
+      this.prisma.extended.tour.count({ where: whereClause }),
     ]);
 
     return {
@@ -57,7 +57,7 @@ export class TourService {
   }
 
   async getTour(id: bigint) {
-    const tour = await this.prisma.tour.findUnique({
+    const tour = await this.prisma.extended.tour.findUnique({
       where: { id },
       include: {
         images: true,
@@ -69,10 +69,10 @@ export class TourService {
   }
 
   async getRelatedTours(id: bigint) {
-    const tour = await this.prisma.tour.findUnique({ where: { id } });
+    const tour = await this.prisma.extended.tour.findUnique({ where: { id } });
     if (!tour) throw new NotFoundException('Tour not found');
 
-    return this.prisma.tour.findMany({
+    return this.prisma.extended.tour.findMany({
       where: {
         id: { not: id },
         destinationId: tour.destinationId,
@@ -83,7 +83,7 @@ export class TourService {
   }
 
   async getDestinations(tag?: string) {
-    const destinations = await this.prisma.destination.findMany();
+    const destinations = await this.prisma.extended.destination.findMany();
     if (tag) {
       return destinations.filter((d) => (d.tags as string[])?.includes(tag));
     }

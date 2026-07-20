@@ -6,6 +6,7 @@ import {
   HttpCode,
   HttpStatus,
   Req,
+  Res,
   UseGuards,
   Headers,
   Get,
@@ -64,30 +65,17 @@ export class AuthController {
   }
 
   @Post('login')
+  @Throttle({ default: { limit: 5, ttl: 60000 } }) // R3-BE-009: 5 requests per minute
   @HttpCode(HttpStatus.OK)
   @ApiOperation({ summary: 'Login — returns JWT access token + refresh token' })
   @ApiResponse({
     status: 200,
     description: 'Login successful',
-    schema: {
-      example: {
-        access_token: 'eyJhbGci...',
-        refresh_token: 'abc123def...',
-        session_token: 'xyz789...',
-        user: {
-          id: '1',
-          email: 'user@example.com',
-          fullName: 'Nguyen Van A',
-          role: 'USER',
-        },
-      },
-    },
   })
-  @ApiResponse({
-    status: 401,
-    description: 'Invalid credentials or locked account',
-  })
-  async login(@Body() dto: LoginDto, @Req() req: Request) {
+  async login(
+    @Body() dto: LoginDto, 
+    @Req() req: Request
+  ) {
     const ip = req.ip || 'unknown';
     const userAgent = req.headers['user-agent'] || 'unknown';
     return this.authService.login(dto, ip, userAgent);

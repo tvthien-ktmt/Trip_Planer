@@ -3,13 +3,14 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBookingFlowStore } from '../../stores';
 import { Briefcase } from 'lucide-react';
+import { BookingStep } from '../../types';
 
 export default function Baggage() {
   const navigate = useRouter();
   const { setStep, updateBookingData, baggage } = useBookingFlowStore();
 
   useEffect(() => {
-    setStep(4);
+    setStep(BookingStep.BAGGAGE);
   }, [setStep]);
 
   const options = [

@@ -11,18 +11,10 @@ export const api = axios.create({
   },
 });
 
-import { getAuthCookie } from './auth';
-
 // Interceptor for auth token
 api.interceptors.request.use((config) => {
   let token = useAuthStore.getState().token;
-  if (!token && typeof document !== 'undefined') {
-    const cookieToken = getAuthCookie();
-    if (cookieToken) {
-      token = cookieToken;
-      useAuthStore.setState({ token });
-    }
-  }
+  // removed getAuthCookie fallback
   if (token && config.headers) {
     config.headers.Authorization = `Bearer ${token}`;
   }
@@ -37,8 +29,13 @@ api.interceptors.response.use(
     if (error.response?.status === 401 && !originalRequest._retry) {
       originalRequest._retry = true;
       try {
-        const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
-        await axios.post(`${apiUrl}/auth/refresh`, {}, { withCredentials: true });
+        const res = await axios.post('/api/auth/refresh', {}, { withCredentials: true });
+        const newToken = res.data?.access_token;
+        if (newToken) {
+          useAuthStore.setState({ token: newToken });
+          const secure = process.env.NODE_ENV === "production" ? "; secure" : "";
+          document.cookie = `token=${newToken}; path=/; max-age=${15*60}; samesite=lax${secure}`;
+        }
         return api(originalRequest);
       } catch (refreshError) {
         useAuthStore.getState().logout();
@@ -51,9 +48,15 @@ api.interceptors.response.use(
 
 // Basic Booking API Wrapper
 export const bookingApi = {
-  createDraftBooking: (data: { type: 'FLIGHT' | 'TOUR'; typeId: string; pax: BookingPax; totalAmount: number }) => api.post('/booking', data),
-  selectSeat: (id: string, seatData: { passengerIndex: number; seatId: string }) => api.post(`/booking/${id}/seats`, seatData),
-  addPassengers: (id: string, passengers: { passengers: PassengerInfo[] }) => api.post(`/booking/${id}/passengers`, passengers),
-  applyVoucher: (id: string, code: string) => api.post(`/booking/${id}/voucher`, { code }),
-  updateStatus: (id: string, status: string) => api.patch(`/booking/${id}/status`, { status }),
+  createDraftBooking: (data: { type: 'FLIGHT' | 'TOUR'; typeId: string; pax: BookingPax; totalAmount: number }) => api.post('/bookings', data),
+  selectSeat: (id: string, seatData: { passengerId: string; seatId: string; version: number }) => api.patch(`/bookings/${id}/seats`, seatData),
+  addPassengers: (id: string, passengers: { passengers: PassengerInfo[] }) => api.put(`/bookings/${id}/passengers`, passengers),
+  applyVoucher: (id: string, code: string) => api.post(`/bookings/${id}/apply-voucher`, { code }),
+  updateStatus: (id: string, status: string) => api.patch(`/bookings/${id}/status`, { status }),
+};
+
+export const paymentApi = {
+  initiatePayment: (bookingId: string) => api.post(`/payments/${bookingId}/initiate`),
+  initiateSepay: (bookingId: string) => api.post(`/payments/${bookingId}/initiate-sepay`),
+  getPaymentStatus: (paymentId: string) => api.get(`/payments/status/${paymentId}`),
 };

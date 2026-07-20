@@ -4,12 +4,14 @@ import { useRouter } from 'next/navigation';
 import { useBookingFlowStore } from '../../stores';
 import { Shield, Wifi, Car } from 'lucide-react';
 
+import { BookingStep } from '../../types';
+
 export default function AddOns() {
   const navigate = useRouter();
   const { setStep, updateBookingData, addons } = useBookingFlowStore();
 
   useEffect(() => {
-    setStep(6);
+    setStep(BookingStep.ADDONS);
   }, [setStep]);
 
   const toggleAddOn = (id: string) => {

@@ -2,7 +2,6 @@
 import { usePathname } from 'next/navigation';
 import React, { useState } from 'react';
 import { useAuthStore } from '../../stores';
-import { setAuthCookie } from '../../lib/auth';
 import { useRouter } from 'next/navigation';
 import { X, Mail, Lock } from 'lucide-react';
 import { toast } from 'sonner';
@@ -23,7 +22,7 @@ export const LoginModal: React.FC = () => {
 
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
-      const response = await fetch(`${apiUrl}/auth/login`, {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -45,15 +44,24 @@ export const LoginModal: React.FC = () => {
         name: data.user.fullName,
         email: data.user.email,
         phone: '', // Mocking phone since not returned in login
-        role: data.user.role === 'ADMIN' ? 'ADMIN' : 'USER',
+        role: data.user.role,
         avatar: data.user.avatarUrl || 'https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop'
       };
 
-      login(realUser, data.access_token);
-      
       // Store token in cookies for Next.js middleware
-      setAuthCookie(data.access_token);
+      const { access_token, user } = data;
+      login(realUser, access_token);
+      const secure = process.env.NODE_ENV === "production" ? "; secure" : "";
+      document.cookie = `token=${access_token}; path=/; max-age=${15*60}; samesite=lax${secure}`;
+      if (data.refresh_token) {
+        document.cookie = `refresh_token=${data.refresh_token}; path=/; max-age=${7*24*60*60}; samesite=lax${secure}`;
+      }
 
+      try {
+        const { useWishlistStore } = await import('../../stores/wishlistStore');
+        await useWishlistStore.getState().syncWishlist();
+      } catch (e) {}
+      
       toast.success('Đăng nhập thành công!');
       setLoginModalOpen(false);
     } catch (error) {

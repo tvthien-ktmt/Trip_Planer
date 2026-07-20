@@ -34,7 +34,7 @@ export class FlightService {
     const nextDate = new Date(searchDate);
     nextDate.setDate(nextDate.getDate() + 1);
 
-    const flights = await this.prisma.flight.findMany({
+    const flights = await this.prisma.extended.flight.findMany({
       where: {
         departureAirportId: BigInt(from), // In reality, from should be iataCode and resolved to ID
         arrivalAirportId: BigInt(to),
@@ -82,7 +82,7 @@ export class FlightService {
   }
 
   async getFlight(id: bigint) {
-    const flight = await this.prisma.flight.findUnique({
+    const flight = await this.prisma.extended.flight.findUnique({
       where: { id },
       include: { fareClasses: true },
     });
@@ -91,7 +91,7 @@ export class FlightService {
   }
 
   async getFlightSeats(id: bigint) {
-    return this.prisma.flightSeat.findMany({
+    return this.prisma.extended.flightSeat.findMany({
       where: { flightId: id },
     });
   }

@@ -16,7 +16,8 @@ export class SessionService {
     userAgent: string;
     deviceName?: string;
   }): Promise<string> {
-    const sessionToken = crypto.randomBytes(32).toString('hex');
+    const rawToken = crypto.randomBytes(32).toString('hex');
+    const sessionTokenHash = crypto.createHash('sha256').update(rawToken).digest('hex');
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 30); // 30 days
 
@@ -28,10 +29,11 @@ export class SessionService {
     // Mock location from IP (in production, use a geo-ip service)
     const location = await this.mockGeoLocation(params.ipAddress);
 
-    await this.prisma.userSession.create({
+    // R3-BE-007: Store hashed session token
+    await this.prisma.extended.userSession.create({
       data: {
         userId: params.userId,
-        sessionToken,
+        sessionToken: sessionTokenHash,
         deviceName,
         deviceType,
         ipAddress: params.ipAddress,
@@ -43,45 +45,73 @@ export class SessionService {
       },
     });
 
-    return sessionToken;
+    return rawToken;
   }
 
   /**
    * Get all active sessions for a user (for "My Devices" page).
    */
   async getUserSessions(userId: bigint, currentSessionToken?: string) {
-    const sessions = await this.prisma.userSession.findMany({
+    const sessions = await this.prisma.extended.userSession.findMany({
       where: {
         userId,
         isActive: true,
         expiresAt: { gt: new Date() },
       },
       orderBy: { lastActiveAt: 'desc' },
+      select: {
+        id: true,
+        deviceName: true,
+        deviceType: true,
+        ipAddress: true,
+        location: true,
+        userAgent: true,
+        isActive: true,
+        lastActiveAt: true,
+        createdAt: true,
+        sessionToken: true,
+      },
     });
 
-    return sessions.map((session) => ({
+    const currentHash = currentSessionToken ? crypto.createHash('sha256').update(currentSessionToken).digest('hex') : null;
+
+    return sessions.map((session: any) => ({
+      ...session,
       id: session.id.toString(),
-      deviceName: session.deviceName,
-      deviceType: session.deviceType,
-      ipAddress: session.ipAddress,
-      location: session.location,
-      lastActiveAt: session.lastActiveAt,
-      createdAt: session.createdAt,
-      isCurrent: currentSessionToken ? session.sessionToken === currentSessionToken : false,
+      isCurrent: currentHash ? session.sessionToken === currentHash : false,
+      sessionToken: undefined, // Don't expose hash to frontend
     }));
+  }
+
+  /**
+   * Logout from all sessions except current
+   */
+  async revokeOtherSessions(
+    userId: bigint,
+    currentSessionToken: string,
+  ): Promise<void> {
+    const currentHash = crypto.createHash('sha256').update(currentSessionToken).digest('hex');
+    await this.prisma.extended.userSession.updateMany({
+      where: {
+        userId,
+        sessionToken: { not: currentHash },
+        isActive: true,
+      },
+      data: { isActive: false },
+    });
   }
 
   /**
    * Revoke a specific session (logout single device).
    */
   async revokeSession(sessionId: bigint, userId: bigint): Promise<void> {
-    await this.prisma.userSession.updateMany({
-      where: {
-        id: sessionId,
-        userId, // Security: only owner can revoke their own session
-      },
+    const result = await this.prisma.extended.userSession.updateMany({
+      where: { id: sessionId, userId },
       data: { isActive: false },
     });
+    if (result.count === 0) {
+      throw new Error('Session not found or not owned by user');
+    }
   }
 
   /**
@@ -100,7 +130,7 @@ export class SessionService {
       where.id = { not: exceptSessionId };
     }
 
-    const result = await this.prisma.userSession.updateMany({
+    const result = await this.prisma.extended.userSession.updateMany({
       where,
       data: { isActive: false },
     });
@@ -109,22 +139,24 @@ export class SessionService {
   }
 
   /**
-   * Update lastActiveAt timestamp for the current session.
+   * Touch session to update lastActiveAt
    */
   async touchSession(sessionToken: string): Promise<void> {
-    await this.prisma.userSession.updateMany({
-      where: { sessionToken, isActive: true },
+    const sessionTokenHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
+    await this.prisma.extended.userSession.updateMany({
+      where: { sessionToken: sessionTokenHash, isActive: true },
       data: { lastActiveAt: new Date() },
     });
   }
 
   /**
-   * Find session by token — used for session-based auth flow.
+   * Find a session by its token (used for token validation)
    */
   async findByToken(sessionToken: string) {
-    return this.prisma.userSession.findFirst({
+    const sessionTokenHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
+    return this.prisma.extended.userSession.findFirst({
       where: {
-        sessionToken,
+        sessionToken: sessionTokenHash,
         isActive: true,
         expiresAt: { gt: new Date() },
       },
@@ -178,24 +210,30 @@ export class SessionService {
   }
 
   private async mockGeoLocation(ipAddress: string): Promise<string> {
-    // In production, use a real geo-IP service (e.g., ipapi.co, MaxMind)
-    // For demo, return reasonable defaults based on common IP ranges
     if (
       !ipAddress ||
       ipAddress === 'unknown' ||
       ipAddress === '::1' ||
-      ipAddress === '127.0.0.1'
-    ) {
-      return 'Local (Development)';
-    }
-    if (
+      ipAddress === '127.0.0.1' ||
       ipAddress.startsWith('192.168.') ||
       ipAddress.startsWith('10.') ||
       ipAddress.startsWith('172.')
     ) {
       return 'Local Network';
     }
-    // Default for demo
-    return 'Ho Chi Minh City, Vietnam';
+
+    try {
+      const response = await fetch(`https://ipapi.co/${ipAddress}/json/`);
+      if (response.ok) {
+        const data = await response.json();
+        if (data.city && data.country_name) {
+          return `${data.city}, ${data.country_name}`;
+        }
+      }
+    } catch (e) {
+      // Ignore errors and fallback
+    }
+
+    return 'Unknown Location';
   }
 }

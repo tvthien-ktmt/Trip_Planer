@@ -94,6 +94,17 @@ export interface BookingContact {
 
 export type BookingStatus = 'Pending' | 'Confirmed' | 'Cancelled' | 'Completed';
 
+export enum BookingStep {
+  FARE_CLASS = 1,
+  PASSENGER = 2,
+  SEAT = 3,
+  BAGGAGE = 4,
+  MEAL = 5,
+  ADDONS = 6,
+  PAYMENT = 7,
+  SUCCESS = 8,
+}
+
 export interface Booking {
   id: string;
   tourId: string;

@@ -38,8 +38,9 @@ export default function VerifyOTP() {
     setIsLoading(true);
     try {
       const otpCode = otp.join('');
-      // FE-004 fix: Navigate to correct path without /auth/ prefix
-      navigate.push(`/reset-password?email=${encodeURIComponent(email)}&otp=${otpCode}`);
+      sessionStorage.setItem('reset-email', email);
+      sessionStorage.setItem('reset-otp', otpCode);
+      navigate.push('/reset-password');
     } catch {
       toast.error('Có lỗi xảy ra. Vui lòng thử lại.');
     } finally {

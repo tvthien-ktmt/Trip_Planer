@@ -9,7 +9,7 @@ import {
   Search, Briefcase, CheckCircle, Clock, Map, BookOpen, Star, Info, Rss, Headphones, ChevronUp
 } from "lucide-react";
 import { Button } from "../ui/Button";
-import { useUIStore, useAuthStore, useChecklistStore, useWishlistStore, useBookingCartStore } from "../../stores";
+import { useUIStore, useAuthStore, useChecklistStore, useWishlistStore, useBookingCartStore, useNotificationStore } from "../../stores";
 import { useTranslation } from "react-i18next";
 import { useMounted } from "../../hooks/useMounted";
 import { toast } from "sonner";
@@ -31,6 +31,7 @@ export const Header = () => {
   const setSidebarOpen = useChecklistStore((state) => state.setSidebarOpen);
   const wishlistCount = useWishlistStore((state) => state.tourIds.length + state.destinationIds.length);
   const cartCount = useBookingCartStore((state) => state.items.length);
+  const notifications = useNotificationStore((state) => state.notifications);
 
   const isDark = mounted && theme === "dark";
 
@@ -197,15 +198,14 @@ export const Header = () => {
                       </button>
                     </div>
                     <div className="max-h-72 overflow-y-auto" aria-live="polite">
-                      {[
-                        { icon: "🎉", title: "Ưu đãi 20% Tour Đà Lạt", desc: "Áp dụng cho booking nhóm 4 người trở lên." },
-                        { icon: "✅", title: "Booking #TRIP123 thành công", desc: "Cảm ơn bạn đã đặt tour. Vui lòng kiểm tra email." },
-                      ].map((n, i) => (
-                        <div key={i} className="px-4 py-3 border-b border-[var(--border-main)] last:border-0 hover:bg-[var(--bg-main)] transition-custom cursor-pointer">
-                          <p className="text-sm font-semibold text-[var(--text-primary)] mb-0.5">{n.icon} {n.title}</p>
-                          <p className="text-xs text-[var(--text-secondary)]">{n.desc}</p>
+                      {notifications.length > 0 ? notifications.map((n: any, i: number) => (
+                        <div key={n.id || i} className={`px-4 py-3 border-b border-[var(--border-main)] last:border-0 hover:bg-[var(--bg-main)] transition-custom cursor-pointer ${n.readAt ? 'opacity-70' : 'bg-blue-50/10'}`}>
+                          <p className="text-sm font-semibold text-[var(--text-primary)] mb-0.5">{n.type === 'PROMOTION' ? '🎉' : '✅'} {n.title}</p>
+                          <p className="text-xs text-[var(--text-secondary)]">{n.body}</p>
                         </div>
-                      ))}
+                      )) : (
+                        <div className="px-4 py-6 text-center text-sm text-[var(--text-secondary)]">Không có thông báo nào</div>
+                      )}
                     </div>
                     <div className="px-4 py-2 text-center border-t border-[var(--border-main)]">
                       <Link href="/user/notifications" className="text-sm font-semibold hover:opacity-80 transition-opacity" style={{ color: "var(--color-ocean-600)" }}>

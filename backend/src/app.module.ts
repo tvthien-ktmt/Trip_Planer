@@ -46,7 +46,7 @@ import { APP_FILTER } from '@nestjs/core';
         REDIS_PORT: Joi.number().default(6379),
         JWT_ACCESS_SECRET: Joi.string().required(),
         JWT_REFRESH_SECRET: Joi.string().required(),
-        APP_SECRET: Joi.string().optional().default('app-secret-default'),
+        APP_SECRET: Joi.string().required(),
         VNPAY_HASH_SECRET: Joi.string().optional(),
       }),
     }),

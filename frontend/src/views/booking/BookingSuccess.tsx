@@ -3,13 +3,17 @@ import { useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBookingFlowStore } from '../../stores';
 import { CheckCircle2, Download, Eye } from 'lucide-react';
+import { routes } from '../../lib/routes';
+
+import { BookingStep } from '../../types';
 
 export default function BookingSuccess() {
   const navigate = useRouter();
-  const { setStep, resetBooking } = useBookingFlowStore();
+  const { setStep, resetBooking, bookingCode } = useBookingFlowStore();
+  const displayCode = bookingCode || 'VN8A2B';
 
   useEffect(() => {
-    setStep(8);
+    setStep(BookingStep.SUCCESS);
     // Tự động clear sau khi rời khỏi trang
     return () => resetBooking();
   }, [setStep, resetBooking]);
@@ -26,20 +30,20 @@ export default function BookingSuccess() {
       
       <div className="bg-gray-100 dark:bg-gray-800 p-6 rounded-2xl mb-8 border border-gray-200 dark:border-gray-700">
         <div className="text-4xl font-black text-blue-600 tracking-[0.5em] mb-2">
-          VN8A2B
+          {displayCode}
         </div>
         <p className="text-sm text-gray-500">Vui lòng lưu lại mã này để làm thủ tục chuyến bay</p>
       </div>
 
       <div className="flex flex-col sm:flex-row gap-4 justify-center">
         <button
-          onClick={() => navigate.push('/booking/NEWPNR/ticket')}
+          onClick={() => navigate.push(routes.bookingTicket(displayCode))}
           className="flex items-center justify-center gap-2 px-8 py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold"
         >
           <Download className="w-5 h-5" /> Tải e-Ticket
         </button>
         <button 
-          onClick={() => navigate.push('/user/bookings/VN8A2B')}
+          onClick={() => navigate.push(routes.userBookingDetail(displayCode))}
           className="flex items-center justify-center gap-2 px-8 py-3 bg-gray-200 hover:bg-gray-300 dark:bg-gray-700 dark:hover:bg-gray-600 text-gray-900 dark:text-white rounded-xl font-bold"
         >
           <Eye className="w-5 h-5" /> Xem chi tiết

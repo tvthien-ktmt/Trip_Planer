@@ -37,7 +37,7 @@ export class AuthService {
   }
 
   async generateOtp(email: string, purpose: 'REGISTER' | 'RESET_PASSWORD') {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.prisma.extended.user.findUnique({ where: { email } });
     if (purpose === 'REGISTER' && user)
       throw new BadRequestException('Email already exists');
     // BE-098 fix: Don't reveal user existence for RESET_PASSWORD — use generic message
@@ -53,7 +53,7 @@ export class AuthService {
     const expiresAt = new Date();
     expiresAt.setMinutes(expiresAt.getMinutes() + 5);
 
-    await this.prisma.otpCode.create({
+    await this.prisma.extended.otpCode.create({
       data: {
         userId,
         email,     // DB-005: store email for pre-registration OTP
@@ -96,7 +96,7 @@ export class AuthService {
 
   async register(dto: RegisterDto & { otp: string }) {
     // DB-005 fix: Query OTP by email instead of userId=BigInt(0) to prevent cross-user OTP leak
-    const otpRecord = await this.prisma.otpCode.findFirst({
+    const otpRecord = await this.prisma.extended.otpCode.findFirst({
       where: {
         email: dto.email,       // ← KEY FIX: filter by email, not userId=0
         purpose: 'REGISTER',
@@ -118,14 +118,14 @@ export class AuthService {
     const isValid = await bcrypt.compare(dto.otp, otpRecord.codeHash);
     if (!isValid) {
       // Increment attempts counter
-      await this.prisma.otpCode.update({
+      await this.prisma.extended.otpCode.update({
         where: { id: otpRecord.id },
         data: { attempts: { increment: 1 } },
       });
       throw new BadRequestException('Invalid OTP');
     }
 
-    const result = await this.prisma.otpCode.updateMany({
+    const result = await this.prisma.extended.otpCode.updateMany({
       where: { id: otpRecord.id, consumedAt: null },
       data: { consumedAt: new Date() },
     });
@@ -137,7 +137,7 @@ export class AuthService {
     const hashedPassword = await bcrypt.hash(dto.password, 10);
     // BE-060 fix: Use correct default status (PENDING_VERIFICATION is schema default)
     // Set ACTIVE only after email verification confirmed
-    const user = await this.prisma.user.create({
+    const user = await this.prisma.extended.user.create({
       data: {
         email: dto.email,
         passwordHash: hashedPassword,
@@ -148,7 +148,7 @@ export class AuthService {
     });
 
     // Update the OTP record to link to the created user
-    await this.prisma.otpCode.update({
+    await this.prisma.extended.otpCode.update({
       where: { id: otpRecord.id },
       data: { userId: user.id },
     });
@@ -164,7 +164,7 @@ export class AuthService {
   }
 
   async login(dto: LoginDto, ip: string, userAgent: string) {
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.extended.user.findUnique({
       where: { email: dto.email },
     });
 
@@ -173,19 +173,26 @@ export class AuthService {
     }
 
     if (user.status === 'LOCKED') {
+      if (user.lockReason !== 'AUTO_FAILED_LOGIN') {
+        throw new UnauthorizedException('Account is locked by administrator.');
+      }
       // BE-050 fix: Check if auto-unlock time has passed (30 min)
-      const lastLockEvent = await this.prisma.activityLog.findFirst({
+      const lastLockEvent = await this.prisma.extended.activityLog.findFirst({
         where: { userId: user.id, action: 'USER_ACCOUNT_LOCKED' },
         orderBy: { createdAt: 'desc' },
       });
-      if (lastLockEvent) {
+      if (lastLockEvent && lastLockEvent.description === 'Tài khoản bị khóa do đăng nhập sai quá 5 lần') {
         const lockTime = lastLockEvent.createdAt.getTime();
         const thirtyMinutes = 30 * 60 * 1000;
+        // Check if admin updated the user's status after the auto-lock
+        if (user.updatedAt.getTime() > lockTime + 1000) {
+          throw new UnauthorizedException('Account is temporarily locked');
+        }
         if (Date.now() - lockTime > thirtyMinutes) {
           // Auto-unlock after 30 minutes
-          await this.prisma.user.update({
+          await this.prisma.extended.user.update({
             where: { id: user.id },
-            data: { status: 'ACTIVE' },
+            data: { status: 'ACTIVE', lockReason: null },
           });
         } else {
           throw new UnauthorizedException('Account is temporarily locked. Try again in 30 minutes.');
@@ -211,7 +218,7 @@ export class AuthService {
     }
 
     // Login success — record login history
-    await this.prisma.loginHistory.create({
+    await this.prisma.extended.loginHistory.create({
       data: {
         userId: user.id,
         ipAddress: ip,
@@ -239,7 +246,7 @@ export class AuthService {
       .digest('hex');
 
     // BE-025 fix: Use proper upsert by unique(userId, deviceFingerprint) instead of where:{id:0}
-    await this.prisma.userDevice
+    await this.prisma.extended.userDevice
       .upsert({
         where: {
           userId_deviceFingerprint: {
@@ -264,11 +271,11 @@ export class AuthService {
   }
 
   private async logLoginFailure(userId: bigint, ip: string, userAgent: string) {
-    await this.prisma.loginHistory.create({
+    await this.prisma.extended.loginHistory.create({
       data: { userId, ipAddress: ip, device: userAgent, success: false },
     });
 
-    const recentFailures = await this.prisma.loginHistory.count({
+    const recentFailures = await this.prisma.extended.loginHistory.count({
       where: {
         userId,
         success: false,
@@ -277,9 +284,9 @@ export class AuthService {
     });
 
     if (recentFailures >= 5) {
-      await this.prisma.user.update({
+      await this.prisma.extended.user.update({
         where: { id: userId },
-        data: { status: 'LOCKED' },
+        data: { status: 'LOCKED', lockReason: 'AUTO_FAILED_LOGIN' },
       });
       await this.activityLog.log({
         userId,
@@ -306,7 +313,7 @@ export class AuthService {
     const expiresAt = new Date();
     expiresAt.setDate(expiresAt.getDate() + 7);
 
-    await this.prisma.refreshToken.create({
+    await this.prisma.extended.refreshToken.create({
       data: {
         userId: user.id,
         tokenHash: refreshHash,
@@ -340,7 +347,7 @@ export class AuthService {
     const tokenHint = this.computeTokenHint(token);
     
     // First lookup by tokenHint for fast O(1) search
-    const candidates = await this.prisma.refreshToken.findMany({
+    const candidates = await this.prisma.extended.refreshToken.findMany({
       where: { tokenHint },
     });
 
@@ -370,11 +377,11 @@ export class AuthService {
 
     if (isRevoked || matchedRecord.expiresAt < new Date()) {
       // Token theft detected — revoke ALL tokens for this user
-      await this.prisma.refreshToken.updateMany({
+      await this.prisma.extended.refreshToken.updateMany({
         where: { userId: matchedRecord.userId, revokedAt: null },
         data: { revokedAt: new Date() },
       });
-      await this.prisma.userSession.updateMany({
+      await this.prisma.extended.userSession.updateMany({
         where: { userId: matchedRecord.userId },
         data: { isActive: false },
       });
@@ -384,12 +391,12 @@ export class AuthService {
     }
 
     // Revoke old token
-    await this.prisma.refreshToken.update({
+    await this.prisma.extended.refreshToken.update({
       where: { id: matchedRecord.id },
       data: { revokedAt: new Date() },
     });
 
-    const user = await this.prisma.user.findUnique({
+    const user = await this.prisma.extended.user.findUnique({
       where: { id: matchedRecord.userId },
     });
     if (!user) {
@@ -420,13 +427,13 @@ export class AuthService {
       // Token decode failed — still proceed with logout
     }
 
-    await this.prisma.refreshToken.updateMany({
+    await this.prisma.extended.refreshToken.updateMany({
       where: { userId, revokedAt: null },
       data: { revokedAt: new Date() },
     });
 
     if (sessionToken) {
-      await this.prisma.userSession.updateMany({
+      await this.prisma.extended.userSession.updateMany({
         where: { userId, sessionToken },
         data: { isActive: false },
       });
@@ -450,26 +457,26 @@ export class AuthService {
 
   // BE-050 fix: Admin unlock endpoint support
   async unlockAccount(userId: bigint) {
-    const user = await this.prisma.user.findUnique({ where: { id: userId } });
+    const user = await this.prisma.extended.user.findUnique({ where: { id: userId } });
     if (!user) throw new BadRequestException('User not found');
     if (user.status !== 'LOCKED') throw new BadRequestException('User is not locked');
 
-    await this.prisma.user.update({
+    await this.prisma.extended.user.update({
       where: { id: userId },
-      data: { status: 'ACTIVE' },
+      data: { status: 'ACTIVE', lockReason: null },
     });
 
     return { message: 'Account unlocked successfully' };
   }
 
   async resetPassword(email: string, otp: string, newPassword: string) {
-    const user = await this.prisma.user.findUnique({ where: { email } });
+    const user = await this.prisma.extended.user.findUnique({ where: { email } });
     // BE-098: Don't reveal user non-existence with different error message
     if (!user) {
       throw new BadRequestException('Invalid or expired OTP');
     }
 
-    const otpRecord = await this.prisma.otpCode.findFirst({
+    const otpRecord = await this.prisma.extended.otpCode.findFirst({
       where: {
         email,
         purpose: 'RESET_PASSWORD',
@@ -490,14 +497,14 @@ export class AuthService {
 
     const isValid = await bcrypt.compare(otp, otpRecord.codeHash);
     if (!isValid) {
-      await this.prisma.otpCode.update({
+      await this.prisma.extended.otpCode.update({
         where: { id: otpRecord.id },
         data: { attempts: { increment: 1 } },
       });
       throw new BadRequestException('Invalid OTP');
     }
 
-    const result = await this.prisma.otpCode.updateMany({
+    const result = await this.prisma.extended.otpCode.updateMany({
       where: { id: otpRecord.id, consumedAt: null },
       data: { consumedAt: new Date() },
     });
@@ -507,15 +514,21 @@ export class AuthService {
     }
 
     const hashedPassword = await bcrypt.hash(newPassword, 10);
-    await this.prisma.user.update({
+    await this.prisma.extended.user.update({
       where: { id: user.id },
       data: { passwordHash: hashedPassword },
     });
 
     // Revoke all refresh tokens for security
-    await this.prisma.refreshToken.updateMany({
+    await this.prisma.extended.refreshToken.updateMany({
       where: { userId: user.id, revokedAt: null },
       data: { revokedAt: new Date() },
+    });
+
+    // BE-032 fix: Ensure password resetting logs out all sessions
+    await this.prisma.extended.userSession.updateMany({
+      where: { userId: user.id },
+      data: { isActive: false },
     });
 
     return { message: 'Password reset successfully' };

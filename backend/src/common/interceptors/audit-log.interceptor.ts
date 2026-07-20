@@ -16,12 +16,12 @@ export class AuditLogInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest();
     const { method, originalUrl, user, body, ip } = request;
 
-    // Only log mutations for Admin
-    if (method !== 'GET' && user?.role === 'ADMIN') {
+    // Only log mutations for Admin and Staff
+    if (method !== 'GET' && (user?.role === 'ADMIN' || user?.role === 'STAFF')) {
       return next.handle().pipe(
         tap(async (data) => {
           try {
-            await this.prisma.auditLog.create({
+            await this.prisma.extended.auditLog.create({
               data: {
                 adminUserId: user.id,
                 action: method,

@@ -4,17 +4,18 @@ import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useBookingFlowStore } from '../../stores';
 import { Check } from 'lucide-react';
+import { BookingStep } from '../../types';
 
 export default function FareClass() {
   const navigate = useRouter();
   const { setStep, updateBookingData, outboundFareClass } = useBookingFlowStore();
 
   useEffect(() => {
-    setStep(1);
+    setStep(BookingStep.FARE_CLASS);
   }, [setStep]);
 
-  const handleSelect = (fareClass: string) => {
-    updateBookingData({ outboundFareClass: fareClass });
+  const handleSelect = (fareClass: string, price: number) => {
+    updateBookingData({ outboundFareClass: fareClass, selectedFlightPricing: price });
   };
 
   const handleNext = () => {
@@ -37,7 +38,7 @@ export default function FareClass() {
         {fares.map((fare) => (
           <div 
             key={fare.name}
-            onClick={() => handleSelect(fare.name)}
+            onClick={() => handleSelect(fare.name, fare.price)}
             className={`border-2 rounded-xl p-6 cursor-pointer transition-all ${
               outboundFareClass === fare.name 
                 ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20' 

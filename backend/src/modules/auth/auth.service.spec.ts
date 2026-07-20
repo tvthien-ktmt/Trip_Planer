@@ -10,7 +10,7 @@ import { BadRequestException, UnauthorizedException } from '@nestjs/common';
 import * as bcrypt from 'bcrypt';
 
 // ===== Mocks =====
-const mockPrisma = {
+const mockPrisma: any = {
   user: {
     findUnique: jest.fn(),
     create: jest.fn(),
@@ -45,6 +45,7 @@ const mockPrisma = {
     findFirst: jest.fn(),
   },
 };
+mockPrisma.extended = mockPrisma;
 
 const mockJwtService = {
   sign: jest.fn().mockReturnValue('mock_access_token'),
@@ -254,7 +255,7 @@ describe('AuthService', () => {
       (mockPrisma.user.findUnique as jest.Mock).mockResolvedValueOnce({
         id: 1n,
         email: 'user@example.com',
-        password: 'hashed_password',
+        passwordHash: 'hashed_password',
         status: 'LOCKED',
       });
       (mockPrisma.activityLog.findFirst as jest.Mock).mockResolvedValueOnce({

@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { Eye, EyeOff, Lock } from 'lucide-react';
 import { toast } from 'sonner';
@@ -13,9 +13,13 @@ export default function ResetPassword() {
   const [isLoading, setIsLoading] = useState(false);
   
   const navigate = useRouter();
-  const searchParams = useSearchParams();
-  const email = searchParams?.get('email') || '';
-  const otp = searchParams?.get('otp') || '';
+  const [email, setEmail] = useState('');
+  const [otp, setOtp] = useState('');
+
+  useEffect(() => {
+    setEmail(sessionStorage.getItem('reset-email') || '');
+    setOtp(sessionStorage.getItem('reset-otp') || '');
+  }, []);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();

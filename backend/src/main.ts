@@ -14,6 +14,7 @@ import { Logger } from 'nestjs-pino';
 async function bootstrap() {
   const app = await NestFactory.create<NestExpressApplication>(AppModule, { bufferLogs: true });
   app.useLogger(app.get(Logger));
+  app.enableShutdownHooks();
 
   // BE-014 fix: Add Helmet, HPP, and body size limits
   app.use(helmet());
@@ -63,46 +64,45 @@ async function bootstrap() {
   );
 
   // Global Exception Filter
-  app.useGlobalFilters(new GlobalExceptionFilter());
+  // Removed duplicated useGlobalFilters(new GlobalExceptionFilter()) here, 
+  // because it is registered in app.module.ts via APP_FILTER
 
   // Swagger API Documentation Setup
-  const config = new DocumentBuilder()
-    .setTitle('Trip Planner OTA API')
-    .setDescription(
-      `Enterprise-grade Online Travel Agency API.
-      
-      **Features:** JWT Auth + Refresh Token Rotation • RBAC + Fine-grained Permissions • Session Management • Booking with Optimistic Locking • VNPay Payment + Idempotency • BullMQ Email Queue • Blog CMS • File Upload • Dashboard Analytics
-      
-      **Test accounts:**
-      - Admin: admin@tripplanner.vn / Admin@123
-      - User: user@tripplanner.vn / User@123`,
-    )
-    .setVersion('1.0')
-    .addBearerAuth(
-      {
-        type: 'http',
-        scheme: 'bearer',
-        bearerFormat: 'JWT',
-        name: 'Authorization',
-        in: 'header',
+  if (process.env.NODE_ENV !== 'production') {
+    const config = new DocumentBuilder()
+      .setTitle('Trip Planner OTA API')
+      .setDescription(
+        `Enterprise-grade Online Travel Agency API.
+        
+        **Features:** JWT Auth + Refresh Token Rotation • RBAC + Fine-grained Permissions • Session Management • Booking with Optimistic Locking • VNPay Payment + Idempotency • BullMQ Email Queue • Blog CMS • File Upload • Dashboard Analytics`,
+      )
+      .setVersion('1.0')
+      .addBearerAuth(
+        {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+          name: 'Authorization',
+          in: 'header',
+        },
+        'JWT-auth',
+      )
+      .addTag('Auth', 'Authentication, session management, and activity log')
+      .addTag('Booking', 'Flight and tour booking with optimistic locking')
+      .addTag('Payment', 'VNPay payment integration with idempotency')
+      .addTag('Admin Analytics', 'Revenue, booking, user, and route analytics')
+      .addTag('RBAC (Admin)', 'Role and permission management')
+      .addTag('Blog CMS', 'Blog post CRUD with draft/publish/schedule workflow')
+      .addTag('File Upload', 'Avatar, blog image, and gallery upload')
+      .build();
+    const document = SwaggerModule.createDocument(app, config);
+    SwaggerModule.setup('api/docs', app, document, {
+      swaggerOptions: {
+        persistAuthorization: true, // Keep auth across page refreshes
+        tagsSorter: 'alpha',
       },
-      'JWT-auth',
-    )
-    .addTag('Auth', 'Authentication, session management, and activity log')
-    .addTag('Booking', 'Flight and tour booking with optimistic locking')
-    .addTag('Payment', 'VNPay payment integration with idempotency')
-    .addTag('Admin Analytics', 'Revenue, booking, user, and route analytics')
-    .addTag('RBAC (Admin)', 'Role and permission management')
-    .addTag('Blog CMS', 'Blog post CRUD with draft/publish/schedule workflow')
-    .addTag('File Upload', 'Avatar, blog image, and gallery upload')
-    .build();
-  const document = SwaggerModule.createDocument(app, config);
-  SwaggerModule.setup('api/docs', app, document, {
-    swaggerOptions: {
-      persistAuthorization: true, // Keep auth across page refreshes
-      tagsSorter: 'alpha',
-    },
-  });
+    });
+  }
 
   // Start the server
   const port = process.env.PORT || 3000;

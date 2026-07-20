@@ -19,7 +19,7 @@ export class PaymentService {
   ) {}
 
   async initiatePayment(bookingId: bigint, userId: bigint) {
-    const booking = await this.prisma.booking.findUnique({
+    const booking = await this.prisma.extended.booking.findUnique({
       where: { id: bookingId },
     });
     if (!booking || booking.status !== 'DRAFT') {
@@ -32,29 +32,18 @@ export class PaymentService {
     }
 
     // BE-054 fix: Check if payment already exists and is SUCCESS
-    const existingPayment = await this.prisma.payment.findUnique({
+    const existingPayment = await this.prisma.extended.payment.findUnique({
       where: { bookingId },
     });
     if (existingPayment && existingPayment.status === 'SUCCESS') {
       throw new BadRequestException('Payment already completed for this booking');
     }
 
-    const { paymentUrl } = await this.prisma.$transaction(async (tx) => {
+    const { paymentUrl } = await this.prisma.extended.$transaction(async (tx) => {
       // Transition booking to PENDING_PAYMENT before payment initiation (BE-090)
       const currentBooking = await tx.booking.findUnique({ where: { id: bookingId } });
       if (currentBooking && this.bookingService.canTransition(currentBooking.status, 'PENDING_PAYMENT')) {
-        await tx.booking.update({
-          where: { id: bookingId },
-          data: { status: 'PENDING_PAYMENT' },
-        });
-        await tx.bookingStatusHistory.create({
-          data: {
-            bookingId,
-            fromStatus: currentBooking.status,
-            toStatus: 'PENDING_PAYMENT',
-            changedBy: userId,
-          },
-        });
+        await this.bookingService.updateBookingStatusWithTx(tx, bookingId, 'PENDING_PAYMENT', userId);
       }
 
       const vnpayUrl = this.configService.get('VNPAY_URL') || 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
@@ -62,10 +51,13 @@ export class PaymentService {
       const idempotencyKey = `PAY_VNPAY_${bookingId}_${Date.now()}`;
 
       if (existingPayment) {
-        await tx.payment.update({
-          where: { id: existingPayment.id },
-          data: { status: 'PENDING' },
+        const r = await tx.payment.updateMany({
+          where: { id: existingPayment.id, status: 'PENDING' },
+          data: { status: 'PENDING', idempotencyKey },
         });
+        if (r.count === 0) {
+          throw new BadRequestException('Payment already completed for this booking');
+        }
       } else {
         await tx.payment.create({
           data: {
@@ -84,7 +76,7 @@ export class PaymentService {
     return { paymentUrl };
   }
 
-  async vnpayCallback(vnpayParams: any) {
+  async vnpayCallback(vnpayParams: any, ip?: string) {
     const secureHash = vnpayParams['vnp_SecureHash'];
     delete vnpayParams['vnp_SecureHash'];
     delete vnpayParams['vnp_SecureHashType'];
@@ -122,7 +114,7 @@ export class PaymentService {
     const responseCode = vnpayParams['vnp_ResponseCode'];
 
     // Transaction with Idempotency check + BE-011 fix: use state machine
-    await this.prisma.$transaction(async (tx: any) => {
+    await this.prisma.extended.$transaction(async (tx: any) => {
       const payment = await tx.payment.findUnique({
         where: { bookingId },
         include: { booking: true },
@@ -136,6 +128,14 @@ export class PaymentService {
       }
 
       if (responseCode === '00') {
+        // R3-BE-008: Verify VNPay amount
+        const vnpAmount = parseInt(vnpayParams['vnp_Amount']);
+        const expectedAmount = payment.amount.toNumber() * 100;
+        
+        if (vnpAmount !== expectedAmount) {
+          throw new BadRequestException('Invalid payment amount');
+        }
+
         const updateResult = await tx.payment.updateMany({
           where: { id: payment.id, status: 'PENDING' },
           data: {
@@ -161,12 +161,20 @@ export class PaymentService {
           return { RspCode: '00', Message: 'Confirm Success' };
         }
 
-        // Revert booking to DRAFT if payment failed
+        // Revert booking to CANCELLED if payment failed and release seats
         if (this.bookingService.canTransition(payment.booking.status, 'CANCELLED')) {
-          await tx.booking.update({
-            where: { id: bookingId },
-            data: { status: 'CANCELLED' },
+          await this.bookingService.updateBookingStatusWithTx(tx, bookingId, 'CANCELLED', null);
+
+          const passengers = await tx.bookingPassenger.findMany({
+            where: { bookingId }, select: { seatId: true },
           });
+          const seatIds = passengers.map((p: any) => p.seatId).filter(Boolean) as bigint[];
+          if (seatIds.length) {
+            await tx.flightSeat.updateMany({
+              where: { id: { in: seatIds }, status: 'LOCKED' },
+              data: { status: 'AVAILABLE', version: { increment: 1 } },
+            });
+          }
         }
       }
     });
@@ -174,8 +182,181 @@ export class PaymentService {
     return { RspCode: '00', Message: 'Confirm Success' };
   }
 
+  async initiateSepay(bookingId: bigint, userId: bigint) {
+    const booking = await this.prisma.extended.booking.findUnique({
+      where: { id: bookingId },
+    });
+    if (!booking || booking.status !== 'DRAFT') {
+      throw new BadRequestException('Invalid booking for payment');
+    }
+
+    if (booking.userId !== userId) {
+      throw new ForbiddenException('You do not own this booking');
+    }
+
+    const existingPayment = await this.prisma.extended.payment.findUnique({
+      where: { bookingId },
+    });
+    if (existingPayment && existingPayment.status === 'SUCCESS') {
+      throw new BadRequestException('Payment already completed for this booking');
+    }
+
+    const { paymentUrl, transferContent, expiredAt, amount, paymentId } = await this.prisma.extended.$transaction(async (tx) => {
+      // Transition booking to PENDING_PAYMENT
+      const currentBooking = await tx.booking.findUnique({ where: { id: bookingId } });
+      if (currentBooking && this.bookingService.canTransition(currentBooking.status, 'PENDING_PAYMENT')) {
+        await this.bookingService.updateBookingStatusWithTx(tx, bookingId, 'PENDING_PAYMENT', userId);
+      }
+
+      // Generate unique transfer content: PAY + bookingId
+      const transferContent = `PAY${bookingId}`;
+      const idempotencyKey = `PAY_SEPAY_${bookingId}_${Date.now()}`;
+      
+      const timeoutMs = parseInt(this.configService.get('PAYMENT_TIMEOUT') || '300000');
+      const expiredAt = new Date(Date.now() + timeoutMs);
+
+      let paymentId: bigint;
+      if (existingPayment) {
+        const r = await tx.payment.update({
+          where: { id: existingPayment.id },
+          data: { 
+            status: 'PENDING', 
+            idempotencyKey, 
+            transferContent, 
+            expiredAt,
+            method: 'SEPAY'
+          },
+        });
+        paymentId = r.id;
+      } else {
+        const r = await tx.payment.create({
+          data: {
+            bookingId,
+            method: 'SEPAY',
+            amount: booking.totalAmount,
+            status: 'PENDING',
+            idempotencyKey,
+            transferContent,
+            expiredAt,
+          },
+        });
+        paymentId = r.id;
+      }
+
+      const sepayUrl = this.configService.get('SEPAY_API_URL') || 'https://qr.sepay.vn/img';
+      const account = this.configService.get('SEPAY_ACCOUNT_NUMBER');
+      const bank = this.configService.get('SEPAY_BANK_CODE');
+      const template = this.configService.get('SEPAY_TEMPLATE') || 'compact2';
+      const amountNum = booking.totalAmount.toNumber();
+
+      const paymentUrl = `https://qr.sepay.vn/img?acc=${account}&bank=${bank}&amount=${amountNum}&des=${transferContent}&template=${template}`;
+
+      return { paymentUrl, transferContent, expiredAt, amount: amountNum, paymentId };
+    });
+
+    return { paymentUrl, transferContent, expiredAt, amount, paymentId: paymentId.toString() };
+  }
+
+  async getPaymentStatus(paymentId: bigint) {
+    const payment = await this.prisma.extended.payment.findUnique({
+      where: { id: paymentId },
+      include: { booking: true },
+    });
+    
+    if (!payment) {
+      throw new BadRequestException('Payment not found');
+    }
+
+    // Check expiration if still pending
+    if (payment.status === 'PENDING' && payment.expiredAt && payment.expiredAt.getTime() < Date.now()) {
+      // Transition to EXPIRED and release seats
+      await this.prisma.extended.$transaction(async (tx) => {
+        const p = await tx.payment.findUnique({ where: { id: paymentId }, include: { booking: true } });
+        if (p?.status === 'PENDING') {
+          await tx.payment.update({
+            where: { id: paymentId },
+            data: { status: 'EXPIRED' },
+          });
+
+          // Cancel booking and release seats
+          if (this.bookingService.canTransition(p.booking.status, 'CANCELLED')) {
+            await this.bookingService.updateBookingStatusWithTx(tx, p.bookingId, 'CANCELLED', null);
+
+            const passengers = await tx.bookingPassenger.findMany({
+              where: { bookingId: p.bookingId }, select: { seatId: true },
+            });
+            const seatIds = passengers.map((px) => px.seatId).filter(Boolean) as bigint[];
+            if (seatIds.length) {
+              await tx.flightSeat.updateMany({
+                where: { id: { in: seatIds }, status: 'LOCKED' },
+                data: { status: 'AVAILABLE', version: { increment: 1 } },
+              });
+            }
+          }
+        }
+      });
+      return { status: 'EXPIRED' };
+    }
+
+    return { status: payment.status };
+  }
+
+  async sepayWebhook(payload: any) {
+    // Standard SePay webhook format or custom format
+    const amount = payload.amount || payload.transferAmount;
+    const content = payload.content || payload.transferContent || payload.description;
+    const bankAccount = payload.bankAccount || payload.accountNumber;
+    
+    // Ignore invalid webhooks
+    if (!content || !amount) {
+      return { success: true };
+    }
+
+    await this.prisma.extended.$transaction(async (tx) => {
+      const payment = await tx.payment.findUnique({
+        where: { transferContent: content.trim() },
+        include: { booking: true },
+      });
+
+      if (!payment) return;
+
+      if (payment.status === 'SUCCESS' || payment.status === 'LATE_PAYMENT') return;
+
+      const isExpired = payment.expiredAt && payment.expiredAt.getTime() < Date.now();
+      const expectedAmount = payment.amount.toNumber();
+
+      if (payment.status === 'EXPIRED' || isExpired) {
+        // Late payment (received after expiration)
+        await tx.payment.update({
+          where: { id: payment.id },
+          data: { status: 'LATE_PAYMENT' },
+        });
+        return;
+      }
+
+      if (payment.status === 'PENDING') {
+        if (Number(amount) === expectedAmount) {
+          // Success
+          await tx.payment.update({
+            where: { id: payment.id },
+            data: { status: 'SUCCESS' },
+          });
+          await this.bookingService.updateBookingStatusWithTx(tx, payment.bookingId, 'CONFIRMED', null);
+        } else {
+          // Invalid amount
+          await tx.payment.update({
+            where: { id: payment.id },
+            data: { status: 'FAILED' },
+          });
+        }
+      }
+    });
+
+    return { success: true };
+  }
+
   async requestRefund(paymentId: bigint, reason: string, userId: bigint) {
-    const payment = await this.prisma.payment.findUnique({
+    const payment = await this.prisma.extended.payment.findUnique({
       where: { id: paymentId },
       include: { booking: true },
     });
@@ -183,17 +364,17 @@ export class PaymentService {
       throw new BadRequestException('Payment is not eligible for refund');
 
     if (payment.booking.userId !== userId)
-      throw new UnauthorizedException("Cannot refund another user's payment");
+      throw new ForbiddenException("Cannot refund another user's payment");
 
     // BE-055 fix: Check if refund already REQUESTED
-    const existingRefund = await this.prisma.refund.findFirst({
+    const existingRefund = await this.prisma.extended.refund.findFirst({
       where: { paymentId, status: 'REQUESTED' },
     });
     if (existingRefund) {
       throw new BadRequestException('A refund request already exists for this payment');
     }
 
-    return this.prisma.refund.create({
+    return this.prisma.extended.refund.create({
       data: {
         paymentId,
         amount: payment.amount,

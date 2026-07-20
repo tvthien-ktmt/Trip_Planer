@@ -34,9 +34,18 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
       throw new UnauthorizedException('Token has been revoked');
     }
 
-    // BE-023/024 fix: Check if user is soft-deleted or locked
-    const user = await this.prisma.user.findUnique({
+    // BE-023/024 fix: Check if user is soft-deleted or locked and select only needed fields
+    const user = await this.prisma.extended.user.findUnique({
       where: { id: payload.sub },
+      select: {
+        id: true,
+        email: true,
+        fullName: true,
+        role: true,
+        status: true,
+        deletedAt: true,
+        avatarUrl: true,
+      },
     });
     if (!user || user.deletedAt) {
       throw new UnauthorizedException('User account has been deleted');

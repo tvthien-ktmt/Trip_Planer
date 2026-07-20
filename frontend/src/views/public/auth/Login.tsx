@@ -3,7 +3,6 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useRouter , useSearchParams} from 'next/navigation';
 import { useAuthStore } from '../../../stores';
-import { setAuthCookie } from '../../../lib/auth';
 import { Eye, EyeOff, Mail, Lock } from 'lucide-react';
 import { toast } from 'sonner';
 
@@ -16,7 +15,9 @@ export default function Login() {
   const { login } = useAuthStore();
   const navigate = useRouter();
   const searchParams = useSearchParams();
-  const redirect = searchParams?.get('redirect') || '/';
+  const rawRedirect = searchParams?.get('redirect') || '/';
+  const isInternal = rawRedirect.startsWith('/') && !rawRedirect.startsWith('//');
+  const redirect = isInternal ? rawRedirect : '/';
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -24,7 +25,7 @@ export default function Login() {
     
     try {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3000/api';
-      const response = await fetch(`${apiUrl}/auth/login`, {
+      const response = await fetch('/api/auth/login', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -49,7 +50,11 @@ export default function Login() {
       }, data.access_token);
       
       // Store token in cookies for Next.js middleware (FE-001/FE-002)
-      setAuthCookie(data.access_token);
+      const secure = process.env.NODE_ENV === "production" ? "; secure" : "";
+      document.cookie = `token=${data.access_token}; path=/; max-age=${15*60}; samesite=lax${secure}`;
+      if (data.refresh_token) {
+        document.cookie = `refresh_token=${data.refresh_token}; path=/; max-age=${7*24*60*60}; samesite=lax${secure}`;
+      }
 
       toast.success('Đăng nhập thành công');
       navigate.push(redirect);

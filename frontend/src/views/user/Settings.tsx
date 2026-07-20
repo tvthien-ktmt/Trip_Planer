@@ -7,6 +7,7 @@ import { useRouter } from 'next/navigation';
 import { User, History, Heart, Settings as SettingsIcon, LogOut, ChevronRight } from 'lucide-react';
 import { PriceTag } from '../../components/common/PriceTag';
 import { RatingStars } from '../../components/common/RatingStars';
+import { routes } from '../../lib/routes';
 
 export default function Settings() {
   const { user, isAuthenticated, logout } = useAuthStore();
@@ -146,7 +147,7 @@ export default function Settings() {
                     <div key={tour.id} className="flex gap-4 border-b border-gray-100 dark:border-gray-700 pb-6 last:border-0">
                       <img src={tour.images[0]} alt={tour.title} className="w-32 h-32 rounded-xl object-cover" />
                       <div className="flex-1 flex flex-col">
-                        <Link href={`/tours/${tour.id}`} className="font-bold text-lg text-gray-900 dark:text-white hover:text-blue-600 line-clamp-2 mb-1">{tour.title}</Link>
+                        <Link href={routes.tourDetail(tour.id)} className="font-bold text-lg text-gray-900 dark:text-white hover:text-blue-600 line-clamp-2 mb-1">{tour.title}</Link>
                         <RatingStars rating={tour.rating} className="mb-2" />
                         <div className="mt-auto flex justify-between items-end">
                           <PriceTag amount={tour.price} className="font-bold text-blue-600 text-lg" />

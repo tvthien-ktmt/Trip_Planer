@@ -1,7 +1,6 @@
 import { create } from 'zustand';
 import { User } from '../types';
 import { persist, createJSONStorage } from 'zustand/middleware';
-import { clearAuthCookie, getAuthCookie } from '../lib/auth';
 
 interface AuthState {
   user: User | null;
@@ -23,15 +22,27 @@ export const useAuthStore = create<AuthState>()(
       isLoginModalOpen: false,
       login: (user, token) => set({ user, token, isAuthenticated: true, isLoginModalOpen: false }),
       logout: () => {
-        clearAuthCookie();
         fetch('/api/auth/logout', { method: 'POST', credentials: 'include' }).catch(() => {});
         set({ user: null, token: null, isAuthenticated: false });
       },
       setLoginModalOpen: (isOpen) => set({ isLoginModalOpen: isOpen }),
-      hydrateFromCookie: () => {
-        const token = getAuthCookie();
-        if (token && !get().token) {
-          set({ token, isAuthenticated: true });
+      hydrateFromCookie: async () => {
+        if (!get().token && typeof window !== 'undefined') {
+          try {
+            const res = await fetch('/api/auth/refresh', { method: 'POST' });
+            if (res.ok) {
+              const data = await res.json();
+              set({ token: data.access_token, user: data.user, isAuthenticated: true });
+              try {
+                const { useWishlistStore } = await import('./wishlistStore');
+                await useWishlistStore.getState().syncWishlist();
+              } catch (e) {}
+            } else {
+              set({ user: null, token: null, isAuthenticated: false });
+            }
+          } catch {
+            set({ user: null, token: null, isAuthenticated: false });
+          }
         }
       },
     }),

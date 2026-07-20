@@ -3,7 +3,7 @@ import { useEffect, useState } from 'react';
 import { toast } from 'sonner';
 import { useRouter } from 'next/navigation';
 import { useBookingFlowStore, useSearchFlightStore } from '../../stores';
-import { PassengerInfo as PassengerInfoType } from '../../types';
+import { PassengerInfo as PassengerInfoType, BookingStep } from '../../types';
 
 export default function PassengerInfo() {
   const navigate = useRouter();
@@ -24,7 +24,7 @@ export default function PassengerInfo() {
   );
 
   useEffect(() => {
-    setStep(2);
+    setStep(BookingStep.PASSENGER);
   }, [setStep]);
 
   const handleChange = (index: number, field: keyof PassengerInfoType, value: string) => {

@@ -10,7 +10,7 @@ export class WishlistService {
     itemType: 'TOUR' | 'DESTINATION' | 'WONDER',
     itemId: bigint,
   ) {
-    const existing = await this.prisma.wishlist.findUnique({
+    const existing = await this.prisma.extended.wishlist.findUnique({
       where: {
         userId_itemType_itemId: {
           userId,
@@ -22,11 +22,11 @@ export class WishlistService {
 
     if (existing) {
       // Toggle off
-      await this.prisma.wishlist.delete({ where: { id: existing.id } });
+      await this.prisma.extended.wishlist.delete({ where: { id: existing.id } });
       return { success: true, action: 'removed' };
     } else {
       // Toggle on
-      await this.prisma.wishlist.create({
+      await this.prisma.extended.wishlist.create({
         data: { userId, itemType, itemId },
       });
       return { success: true, action: 'added' };
@@ -34,6 +34,6 @@ export class WishlistService {
   }
 
   async getWishlist(userId: bigint) {
-    return this.prisma.wishlist.findMany({ where: { userId } });
+    return this.prisma.extended.wishlist.findMany({ where: { userId } });
   }
 }

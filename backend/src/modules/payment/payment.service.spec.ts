@@ -16,25 +16,34 @@ describe('PaymentService', () => {
         PaymentService,
         {
           provide: PrismaService,
-          useValue: {
-            $transaction: jest.fn(async (cb) => cb(prisma)),
-            payment: {
-              findUnique: jest.fn(),
-              update: jest.fn(),
-              updateMany: jest.fn(),
-            },
-            booking: {
-              update: jest.fn(),
-            },
-            bookingStatusHistory: {
-              create: jest.fn(),
-            },
-          },
+          useValue: (() => {
+            const m: any = {
+              $transaction: jest.fn(async (cb) => cb(prisma)),
+              payment: {
+                findUnique: jest.fn(),
+                update: jest.fn(),
+                updateMany: jest.fn(),
+              },
+              booking: {
+                update: jest.fn(),
+              },
+              bookingStatusHistory: {
+                create: jest.fn(),
+              },
+            };
+            m.extended = m;
+            return m;
+          })(),
         },
         {
           provide: ConfigService,
           useValue: {
-            get: jest.fn().mockReturnValue('secret'),
+            get: jest.fn().mockImplementation((key: string) => {
+              if (key === 'VNPAY_HASH_SECRET') return 'secret';
+              if (key === 'VNPAY_URL') return 'https://sandbox.vnpayment.vn/paymentv2/vpcpay.html';
+              if (key === 'VNPAY_TMN_CODE') return 'TEST';
+              return null;
+            }),
           },
         },
         {
@@ -76,32 +85,34 @@ describe('PaymentService', () => {
       const request2Params = { ...vnpayParams, vnp_SecureHash: signed };
 
       // MOCK FOR REQUEST 1: Payment is currently PENDING
-      (prisma.payment.findUnique as jest.Mock).mockResolvedValueOnce({
+      ((prisma as any).payment.findUnique as jest.Mock).mockResolvedValueOnce({
         id: 1n,
         bookingId: 1n,
         status: 'PENDING',
         booking: { status: 'PENDING_PAYMENT' },
+        amount: { toNumber: () => 10000 },
       });
-      (prisma.payment.updateMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
+      ((prisma as any).payment.updateMany as jest.Mock).mockResolvedValueOnce({ count: 1 });
 
       const res1 = await service.vnpayCallback(request1Params);
       expect(res1).toEqual({ RspCode: '00', Message: 'Confirm Success' });
 
       // MOCK FOR REQUEST 2: Payment is already SUCCESS (because Request 1 updated it)
-      (prisma.payment.findUnique as jest.Mock).mockResolvedValueOnce({
+      ((prisma as any).payment.findUnique as jest.Mock).mockResolvedValueOnce({
         id: 1n,
         bookingId: 1n,
         status: 'SUCCESS',
         booking: { status: 'CONFIRMED' },
+        amount: { toNumber: () => 10000 },
       });
-      (prisma.payment.updateMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
+      ((prisma as any).payment.updateMany as jest.Mock).mockResolvedValueOnce({ count: 0 });
 
       const res2 = await service.vnpayCallback(request2Params);
       expect(res2).toEqual({ RspCode: '00', Message: 'Confirm Success' });
 
       // The core assertion: verify update was only called ONCE for the first request
-      expect(prisma.payment.updateMany).toHaveBeenCalledTimes(1);
-      expect(prisma.payment.updateMany).toHaveBeenCalledWith({
+      expect((prisma as any).payment.updateMany).toHaveBeenCalledTimes(1);
+      expect((prisma as any).payment.updateMany).toHaveBeenCalledWith({
         where: { id: 1n, status: 'PENDING' },
         data: { status: 'SUCCESS', transactionRef: '123456' },
       });

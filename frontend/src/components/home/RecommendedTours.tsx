@@ -9,6 +9,7 @@ import Link from 'next/link';
 
 import { useWishlistStore } from "../../stores";
 import { Button } from "../ui/Button";
+import { routes } from '../../lib/routes';
 
 export const RecommendedTours = () => {
   const { data: tours, isLoading, isError, refetch } = useToursQuery();
@@ -107,7 +108,7 @@ export const RecommendedTours = () => {
                   <MapPin className="w-3.5 h-3.5" /> {tour.location}
                 </p>
 
-                <Link href={`/tours/${tour.id}`}>
+                <Link href={routes.tourDetail(tour.id)}>
                   <h3 className="font-semibold text-[var(--text-primary)] leading-snug mb-3 transition-custom group-hover:text-[var(--color-ocean-600)]"
                     style={{ fontSize: "var(--text-heading)" }}>
                     {tour.title}
@@ -142,7 +143,7 @@ export const RecommendedTours = () => {
                       {tour.oldPrice && <PriceTag amount={tour.oldPrice} isOldPrice />}
                     </div>
                   </div>
-                  <Button variant="primary" size="sm" as={Link} href={`/tours/${tour.id}`}>
+                  <Button variant="primary" size="sm" as={Link} href={routes.tourDetail(tour.id)}>
                     Xem chi tiết
                   </Button>
                 </div>

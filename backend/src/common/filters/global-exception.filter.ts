@@ -45,6 +45,9 @@ export class GlobalExceptionFilter implements ExceptionFilter {
         status = HttpStatus.BAD_REQUEST;
         message = 'Database operation failed.';
       }
+    } else if (exception instanceof SyntaxError && exception.message.includes('to a BigInt')) {
+      status = HttpStatus.BAD_REQUEST;
+      message = 'Invalid ID format in request.';
     } else if (exception instanceof Error) {
       if (process.env.NODE_ENV === 'production') {
         message = 'Internal server error';

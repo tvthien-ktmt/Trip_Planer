@@ -23,6 +23,7 @@ model User {
   passportNo      String?
   role            Role       @default(USER)
   status          UserStatus @default(PENDING_VERIFICATION)
+  lockReason      String? // BE-017: Distinguish AUTO vs ADMIN lock
   emailVerifiedAt DateTime?
   createdAt       DateTime   @default(now())
   updatedAt       DateTime   @updatedAt
@@ -46,6 +47,7 @@ model User {
   otpCodes               OtpCode[]
   notifications          Notification[]
   auditLogs              AuditLog[]
+  reviewVotes            ReviewVote[]
 }
 
 enum Role {
@@ -96,9 +98,9 @@ model RefreshToken {
 
 model OtpCode {
   id         BigInt     @id @default(autoincrement())
-  userId     BigInt?    // Nullable — null for pre-registration OTPs
+  userId     BigInt? // Nullable — null for pre-registration OTPs
   user       User?      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  email      String     // NOT NULL — always store email for lookup
+  email      String // NOT NULL — always store email for lookup
   codeHash   String
   purpose    OtpPurpose
   expiresAt  DateTime
@@ -246,6 +248,7 @@ model FlightSeat {
 
   passengers BookingPassenger[]
 
+  @@unique([flightId, seatCode]) // DB-010
   @@index([flightId, status]) // DB-014: needed for seat availability query
   @@index([fareClassId])
 }
@@ -304,6 +307,8 @@ model TourItinerary {
   dayNumber   Int
   title       String
   description String? @db.Text
+
+  @@index([tourId])
 }
 
 model TourImage {
@@ -312,6 +317,8 @@ model TourImage {
   tour         Tour   @relation(fields: [tourId], references: [id])
   imageUrl     String
   displayOrder Int    @default(0)
+
+  @@index([tourId])
 }
 
 // ===== BOOKING =====
@@ -328,12 +335,12 @@ model Booking {
   createdAt   DateTime      @default(now())
   updatedAt   DateTime      @updatedAt
 
-  passengers        BookingPassenger[]
-  items             BookingItem[]
-  statusHistory     BookingStatusHistory[]
-  payment           Payment?
-  VoucherRedemption VoucherRedemption[]
-  PointTransaction  PointTransaction[]
+  passengers         BookingPassenger[]
+  items              BookingItem[]
+  statusHistory      BookingStatusHistory[]
+  payment            Payment?
+  voucherRedemptions VoucherRedemption[]
+  pointTransactions  PointTransaction[]
 
   @@index([userId])
   @@index([status])
@@ -365,6 +372,8 @@ model BookingPassenger {
   seat        FlightSeat?      @relation(fields: [seatId], references: [id]) // DB-008 FK fix
   fareClassId BigInt?
   fareClass   FlightFareClass? @relation(fields: [fareClassId], references: [id])
+
+  @@index([bookingId])
 }
 
 model BookingItem {
@@ -376,6 +385,8 @@ model BookingItem {
   quantity  Int             @default(1)
   unitPrice Decimal         @db.Decimal(18, 2) // DB-025
   subtotal  Decimal         @db.Decimal(18, 2) // DB-025
+
+  @@index([bookingId])
 }
 
 enum BookingItemType {
@@ -407,8 +418,10 @@ model Payment {
   method         PaymentMethod
   amount         Decimal       @db.Decimal(18, 2) // DB-025
   status         PaymentStatus @default(PENDING)
-  transactionRef String?
+  transactionRef String?       @unique
   idempotencyKey String        @unique
+  transferContent String?      @unique
+  expiredAt      DateTime?
   createdAt      DateTime      @default(now())
   updatedAt      DateTime      @updatedAt
 
@@ -416,6 +429,7 @@ model Payment {
 
   @@index([createdAt])
   @@index([status, createdAt]) // DB-017: for analytics queries
+  @@index([transactionRef]) // R3-DB-002
 }
 
 enum PaymentMethod {
@@ -423,6 +437,7 @@ enum PaymentMethod {
   BANK_TRANSFER
   VNPAY
   MOMO
+  SEPAY
 }
 
 enum PaymentStatus {
@@ -430,6 +445,8 @@ enum PaymentStatus {
   SUCCESS
   FAILED
   REFUNDED
+  EXPIRED
+  LATE_PAYMENT
 }
 
 model Refund {
@@ -456,17 +473,17 @@ enum RefundStatus {
 }
 
 model Voucher {
-  id                BigInt              @id @default(autoincrement())
-  code              String              @unique
-  discountType      DiscountType
-  discountValue     Decimal             @db.Decimal(18, 2) // DB-025
-  minOrderAmount    Decimal             @default(0) @db.Decimal(18, 2) // DB-025
-  maxDiscountAmount Decimal?            @db.Decimal(18, 2) // DB-025
-  validFrom         DateTime
-  validTo           DateTime
-  usageLimit        Int?
-  usedCount         Int                 @default(0)
-  VoucherRedemption VoucherRedemption[]
+  id                 BigInt              @id @default(autoincrement())
+  code               String              @unique
+  discountType       DiscountType
+  discountValue      Decimal             @db.Decimal(18, 2) // DB-025
+  minOrderAmount     Decimal             @default(0) @db.Decimal(18, 2) // DB-025
+  maxDiscountAmount  Decimal?            @db.Decimal(18, 2) // DB-025
+  validFrom          DateTime
+  validTo            DateTime
+  usageLimit         Int?
+  usedCount          Int                 @default(0)
+  voucherRedemptions VoucherRedemption[]
 }
 
 enum DiscountType {
@@ -503,8 +520,22 @@ model Review {
   status         ReviewStatus   @default(PUBLISHED)
   createdAt      DateTime       @default(now())
 
+  votes ReviewVote[]
+
   @@index([reviewableType, reviewableId, status]) // DB-024
   @@index([userId, reviewableType, reviewableId])
+}
+
+model ReviewVote {
+  id        BigInt   @id @default(autoincrement())
+  reviewId  BigInt
+  review    Review   @relation(fields: [reviewId], references: [id], onDelete: Cascade)
+  userId    BigInt
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  isUpvote  Boolean
+  createdAt DateTime @default(now())
+
+  @@unique([reviewId, userId]) // BE-021: Prevent multiple votes by same user
 }
 
 enum ReviewableType {

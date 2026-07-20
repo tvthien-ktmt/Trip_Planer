@@ -1,4 +1,4 @@
-﻿import React from 'react';
+import React from 'react';
 
 interface SkeletonProps {
   className?: string;
@@ -83,13 +83,5 @@ export const Skeleton: React.FC<SkeletonProps> = ({
     />
   );
 };
-
-// Inject shimmer animation once
-if (typeof document !== 'undefined' && !document.getElementById('skeleton-shimmer-style')) {
-  const style = document.createElement('style');
-  style.id = 'skeleton-shimmer-style';
-  style.textContent = `@keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }`;
-  document.head.appendChild(style);
-}
 
 export default Skeleton;

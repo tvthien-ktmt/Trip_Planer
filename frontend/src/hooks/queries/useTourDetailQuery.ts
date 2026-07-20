@@ -2,7 +2,7 @@ import { useQuery } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 
 const fetchTourDetail = async (id: string) => {
-  const response = await api.get(`/tour/${id}`);
+  const response = await api.get(`/tours/${id}`);
   return response.data;
 };
 
