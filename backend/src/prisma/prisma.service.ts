@@ -100,6 +100,20 @@ function getExtendedClient(client: PrismaClient) {
           async findMany({ args, query }) { if (args.where) args.where = encryptPii(args.where); return decryptRecord(await query(args)); },
           async findFirst({ args, query }) { if (args.where) args.where = encryptPii(args.where); return decryptRecord(await query(args)); },
         },
+        booking: {
+          async create({ args, query }) { args.data = encryptPii(args.data); return decryptRecord(await query(args)); },
+          async update({ args, query }) { args.data = encryptPii(args.data); return decryptRecord(await query(args)); },
+          async upsert({ args, query }) { args.create = encryptPii(args.create); args.update = encryptPii(args.update); return decryptRecord(await query(args)); },
+          async createMany({ args, query }) {
+            if (Array.isArray(args.data)) args.data = args.data.map(encryptPii);
+            else args.data = encryptPii(args.data);
+            return query(args);
+          },
+          async updateMany({ args, query }) { if (args.data) args.data = encryptPii(args.data); return query(args); },
+          async findUnique({ args, query }) { if (args.where) args.where = encryptPii(args.where); return decryptRecord(await query(args)); },
+          async findMany({ args, query }) { if (args.where) args.where = encryptPii(args.where); return decryptRecord(await query(args)); },
+          async findFirst({ args, query }) { if (args.where) args.where = encryptPii(args.where); return decryptRecord(await query(args)); },
+        },
         auditLog: {
           async create({ args, query }) { args.data = encryptPii(args.data); return decryptRecord(await query(args)); },
           async update({ args, query }) { args.data = encryptPii(args.data); return decryptRecord(await query(args)); },

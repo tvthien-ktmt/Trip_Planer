@@ -50,6 +50,9 @@ export const bookingApi = {
   selectSeat: (id: string, seatData: { passengerId: string; seatId: string; version: number }) => api.patch(`/bookings/${id}/seats`, seatData),
   addPassengers: (id: string, passengers: { passengers: PassengerInfo[] }) => api.put(`/bookings/${id}/passengers`, passengers),
   addAddons: (id: string, addons: string[]) => api.post(`/bookings/${id}/addons`, { addons }),
+  // R6-FE-002 fix: baggage and meals were never sent to BE
+  addBaggage: (id: string, baggage: Record<string, number>) => api.post(`/bookings/${id}/baggage`, { baggage }),
+  addMeals: (id: string, meals: Record<string, string>) => api.post(`/bookings/${id}/meals`, { meals }),
   applyVoucher: (id: string, code: string) => api.post(`/bookings/${id}/apply-voucher`, { code }),
   updateStatus: (id: string, status: string) => api.patch(`/bookings/${id}/status`, { status }),
 };

@@ -19,7 +19,15 @@ async function bootstrap() {
   // BE-014 fix: Add Helmet, HPP, and body size limits
   app.use(helmet());
   app.use(hpp());
-  app.use(express.json({ limit: '1mb' }));
+  // R6-BE-009 fix: Enable rawBody capture for SePay HMAC verification
+  // SePay signs the RAW bytes sent. JSON.stringify can reorder keys → false 401.
+  // Store raw buffer in req.rawBody before parsing.
+  app.use(express.json({
+    limit: '1mb',
+    verify: (req: any, _res, buf) => {
+      req.rawBody = buf;
+    },
+  }));
   app.use(express.urlencoded({ limit: '1mb', extended: true }));
 
   // Create upload directories if they don't exist

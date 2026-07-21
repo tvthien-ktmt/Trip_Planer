@@ -85,6 +85,14 @@ export const useBookingFlowStore = create<BookingFlowState>()(
             await bookingApi.addAddons(bookingId, state.addons);
           }
 
+          // 3.6. R6-FE-002 fix: Send baggage and meals — were DROPPED before this fix
+          if (state.baggage && Object.keys(state.baggage).length > 0) {
+            await bookingApi.addBaggage(bookingId, state.baggage);
+          }
+          if (state.meals && Object.keys(state.meals).length > 0) {
+            await bookingApi.addMeals(bookingId, state.meals);
+          }
+
           // 4. Initiate Payment
           if (paymentMethod === 'atm' || paymentMethod === 'sepay') {
             const paymentRes = await paymentApi.initiateSepay(bookingId);

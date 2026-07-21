@@ -51,6 +51,9 @@ export class EmailProcessor extends WorkerHost {
       case 'send-password-reset':
         return this.handlePasswordReset(job.data as PasswordResetJob);
 
+      case 'send-contact-notification':
+        return this.handleContactNotification(job.data as { to: string; fromName: string; fromEmail: string; subject: string; message: string });
+
       default:
         this.logger.warn(`Unknown email job type: ${job.name}`);
     }
@@ -62,15 +65,18 @@ export class EmailProcessor extends WorkerHost {
     super();
     // Use nodemailer require to avoid TS compile issues if types are missing
     const nodemailer = require('nodemailer');
-    
+
     // R5-BE-001 fix: Real SMTP integration
+    // M6/R6-BE-007 fix: Remove Ethereal defaults — if SMTP vars missing, fail fast rather than
+    // silently use Ethereal (fake test service) in production where users never receive emails.
+    // Joi validation in app.module.ts now enforces these vars as required.
     this.transporter = nodemailer.createTransport({
-      host: process.env.SMTP_HOST || 'smtp.ethereal.email',
+      host: process.env.SMTP_HOST,  // no fallback — fail fast if missing
       port: Number(process.env.SMTP_PORT) || 587,
       secure: process.env.SMTP_SECURE === 'true',
       auth: {
-        user: process.env.SMTP_USER || 'ethereal.user@ethereal.email',
-        pass: process.env.SMTP_PASS || 'etherealpass',
+        user: process.env.SMTP_USER,  // no fallback
+        pass: process.env.SMTP_PASS,  // no fallback
       },
     });
   }
@@ -187,6 +193,27 @@ export class EmailProcessor extends WorkerHost {
         </div>
         <p style="color: #6b7280;">Mã có hiệu lực trong <strong>5 phút</strong>. Không chia sẻ mã này với bất kỳ ai.</p>
         <p style="color: #6b7280;">Nếu bạn không yêu cầu đặt lại mật khẩu, hãy bỏ qua email này.</p>
+      </div>
+    `;
+    await this.sendEmail(data.to, subject, html);
+  }
+
+  // R6-BE-002 fix: Handle contact form notification email
+  private async handleContactNotification(data: { to: string; fromName: string; fromEmail: string; subject: string; message: string }): Promise<void> {
+    this.logger.log(`📧 [CONTACT NOTIFICATION] Preparing admin notification`);
+    const subject = `[Trip Planner] Liên hệ mới: ${data.subject}`;
+    const html = `
+      <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h1 style="color: #2563eb;">📬 Tin nhắn liên hệ mới</h1>
+        <table style="width: 100%; border-collapse: collapse; margin: 16px 0;">
+          <tr><td style="padding: 8px; background: #f3f4f6; font-weight: bold;">Người gửi</td><td style="padding: 8px;">${data.fromName}</td></tr>
+          <tr><td style="padding: 8px; font-weight: bold;">Email</td><td style="padding: 8px;">${data.fromEmail}</td></tr>
+          <tr><td style="padding: 8px; background: #f3f4f6; font-weight: bold;">Chủ đề</td><td style="padding: 8px;">${data.subject}</td></tr>
+        </table>
+        <div style="background: #f9fafb; border-left: 4px solid #2563eb; padding: 16px; margin: 16px 0;">
+          <p style="margin: 0; white-space: pre-wrap;">${data.message}</p>
+        </div>
+        <p style="color: #9ca3af; font-size: 12px;">Trả lời trực tiếp tới: ${data.fromEmail}</p>
       </div>
     `;
     await this.sendEmail(data.to, subject, html);

@@ -9,14 +9,15 @@ import {
   Body,
   UseGuards,
   ForbiddenException,
-  NotFoundException,
   BadRequestException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { BookingService } from './booking.service';
+import { PaymentService } from '../payment/payment.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
-import { IsString, IsNotEmpty, IsArray, ValidateNested, IsOptional, IsNumber, Min, Max, IsEnum } from 'class-validator';
+import { IsString, IsNotEmpty, IsArray, ValidateNested, IsOptional, IsNumber, IsEnum } from 'class-validator';
 import { Type } from 'class-transformer';
 import { BookingType, BookingStatus } from '@prisma/client';
 
@@ -94,6 +95,7 @@ class UpdateStatusDto {
 export class BookingController {
   constructor(
     private readonly bookingService: BookingService,
+    private readonly paymentService: PaymentService,
   ) {}
 
   @Post()
@@ -106,17 +108,32 @@ export class BookingController {
   }
 
   @Post('checkout')
-  @ApiOperation({ summary: 'Checkout from cart items' })
+  @ApiOperation({ summary: 'Checkout from cart — creates booking and initiates SePay payment' })
   async checkoutCart(
     @CurrentUser() user: any,
     @Body() dto: any,
   ) {
-    // R5-FE-005 fix: Real API endpoint to handle Reservation.tsx checkout instead of mock
-    // In a full implementation, this maps items to Flight/Tour bookings.
-    // We create a basic booking here to satisfy the real API requirement.
-    const booking = await this.bookingService.createDraftBooking(user.id, dto.items?.[0]?.type === 'flight' ? BookingType.FLIGHT : BookingType.TOUR);
-    await this.bookingService.updateBookingStatus(booking.id, BookingStatus.CONFIRMED, user.id);
-    return { success: true, bookingCode: booking.bookingCode };
+    // R6-BE-001 fix: OLD code called DRAFT→CONFIRMED (always throws per state machine).
+    // DRAFT transitions are: DRAFT → PENDING_PAYMENT or CANCELLED.
+    // NEW: Create DRAFT booking, add passengers if provided, then initiate payment.
+    const bookingType: BookingType = dto.items?.[0]?.type === 'flight' ? BookingType.FLIGHT : BookingType.TOUR;
+    const booking = await this.bookingService.createDraftBooking(user.id, bookingType);
+
+    // Add passengers if provided
+    if (dto.passengers && Array.isArray(dto.passengers) && dto.passengers.length > 0) {
+      await this.bookingService.updatePassengers(booking.id, dto.passengers);
+    }
+
+    // Initiate payment (transitions to PENDING_PAYMENT)
+    const paymentResult = await this.paymentService.initiateSepay(booking.id, user.id);
+    return {
+      success: true,
+      bookingCode: booking.bookingCode,
+      bookingId: booking.id.toString(),
+      paymentUrl: paymentResult.paymentUrl,
+      paymentId: paymentResult.paymentId,
+      expiredAt: paymentResult.expiredAt,
+    };
   }
 
   @Patch(':id/seats')
@@ -164,6 +181,28 @@ export class BookingController {
   ) {
     await this.bookingService.verifyOwnership(id, user.id);
     return this.bookingService.addAddons(id, dto.addons);
+  }
+
+  @Post(':id/baggage')
+  @ApiOperation({ summary: 'Add baggage selections to booking (R6-FE-002 fix)' })
+  async addBaggage(
+    @Param('id', ParseBigIntPipe) id: bigint,
+    @Body() dto: { baggage: Record<string, number> },
+    @CurrentUser() user: any,
+  ) {
+    await this.bookingService.verifyOwnership(id, user.id);
+    return this.bookingService.addBaggage(id, dto.baggage);
+  }
+
+  @Post(':id/meals')
+  @ApiOperation({ summary: 'Add meal selections to booking (R6-FE-002 fix)' })
+  async addMeals(
+    @Param('id', ParseBigIntPipe) id: bigint,
+    @Body() dto: { meals: Record<string, string> },
+    @CurrentUser() user: any,
+  ) {
+    await this.bookingService.verifyOwnership(id, user.id);
+    return this.bookingService.addMeals(id, dto.meals);
   }
 
   @Patch(':id/status')

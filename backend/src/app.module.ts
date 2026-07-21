@@ -27,6 +27,8 @@ import { LoggerModule } from 'nestjs-pino';
 import { v4 as uuidv4 } from 'uuid';
 import { GlobalExceptionFilter } from './common/filters/global-exception.filter';
 import { APP_FILTER } from '@nestjs/core';
+import { AppController } from './app.controller';
+import { AppService } from './app.service';
 @Module({
   imports: [
     LoggerModule.forRoot({
@@ -55,12 +57,13 @@ import { APP_FILTER } from '@nestjs/core';
         SEPAY_API_URL: Joi.string().default('https://qr.sepay.vn/img'),
         SEPAY_TEMPLATE: Joi.string().valid('', 'compact', 'qronly', 'standee', 'compact2').default('compact'),
         SEPAY_WEBHOOK_SECRET: Joi.string().required(),
-        // SMTP env vars for email
-        SMTP_HOST: Joi.string().optional(),
+        // R6-BE-007 fix: SMTP env vars must be REQUIRED — optional() allows silent Ethereal fallback in prod
+        // Users would never receive real emails if these are missing
+        SMTP_HOST: Joi.string().required(),
         SMTP_PORT: Joi.number().default(587),
-        SMTP_USER: Joi.string().optional(),
-        SMTP_PASS: Joi.string().optional(),
-        SMTP_FROM: Joi.string().optional(),
+        SMTP_USER: Joi.string().required(),
+        SMTP_PASS: Joi.string().required(),
+        SMTP_FROM: Joi.string().required(),
       }),
     }),
     ThrottlerModule.forRoot([
@@ -108,8 +111,9 @@ import { APP_FILTER } from '@nestjs/core';
     UploadModule,
     FaqModule,
   ],
-  controllers: [],
+  controllers: [AppController],
   providers: [
+    AppService,
     {
       provide: APP_GUARD,
       useClass: ThrottlerGuard, // Global rate limiter

@@ -6,12 +6,13 @@ export const BookingSummarySidebar = () => {
   const { outboundFareClass, passengerInfo, selectedSeats, selectedFlightPricing } = useBookingFlowStore();
   const { departure, destination, departureDate } = useSearchFlightStore();
 
-  const paxCount = Math.max(1, passengerInfo.length);
-  const basePricePerPax = selectedFlightPricing || 0;
-  const basePrice = basePricePerPax * paxCount;
+  // R6-FE-003 fix: Double multiplication bug
+  // OLD: basePrice = perPax * paxCount; total = basePrice * numPassengers → doubles!
+  // NEW: single multiplication
   const numPassengers = Math.max(1, passengerInfo.length);
-  const seatsPrice = Object.keys(selectedSeats).length * 0; // Actual price should come from store, removed hardcoded demo
-  const total = basePrice * numPassengers + seatsPrice;
+  const basePricePerPax = selectedFlightPricing || 0;
+  const basePrice = basePricePerPax * numPassengers; // single multiplication
+  const seatsPrice = 0; // seat extra fee not tracked in FE store yet
 
   return (
     <div className="w-full lg:w-[360px] flex-shrink-0">
@@ -30,8 +31,8 @@ export const BookingSummarySidebar = () => {
               <Plane className="w-5 h-5" style={{ color: "var(--color-ocean-900)" }} />
             </div>
             <div>
-              <p className="font-semibold text-[var(--text-primary)]">{departure || 'SGN'} → {destination || 'HAN'}</p>
-              <p className="text-[var(--text-secondary)] text-sm">{departureDate || '20 Tháng 10, 2026'}</p>
+              <p className="font-semibold text-[var(--text-primary)]">{departure || '---'} → {destination || '---'}</p>
+              <p className="text-[var(--text-secondary)] text-sm">{departureDate || 'Chưa chọn ngày'}</p>
             </div>
           </div>
           <div className="pl-14">
@@ -48,7 +49,7 @@ export const BookingSummarySidebar = () => {
               <Users className="w-4 h-4" /> Hành khách ({numPassengers})
             </span>
             <span className="font-semibold text-[var(--text-primary)] font-utility">
-              {(basePrice * numPassengers).toLocaleString()} ₫
+              {basePrice.toLocaleString()} ₫
             </span>
           </div>
           
@@ -69,7 +70,7 @@ export const BookingSummarySidebar = () => {
           <div className="flex justify-between items-end mb-1">
             <span className="text-[var(--text-primary)] font-semibold">Tổng cộng</span>
             <span className="font-display font-bold" style={{ fontSize: "var(--text-display-md)", color: "var(--color-coral-500)" }}>
-              {total.toLocaleString()} ₫
+              {(basePrice + seatsPrice).toLocaleString()} ₫
             </span>
           </div>
           <p className="text-right text-[10px] text-[var(--text-secondary)]">Đã bao gồm thuế & phí</p>

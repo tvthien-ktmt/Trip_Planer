@@ -16,8 +16,11 @@ export const useWishlistStore = create<WishlistState>()((set) => ({
     try {
       const { api } = await import('../lib/api');
       const res = await api.get('/wishlists');
-      const tourIds = res.data.filter((item: any) => item.itemType === 'TOUR').map((item: any) => item.itemId.toString());
-      const destinationIds = res.data.filter((item: any) => item.itemType === 'DESTINATION').map((item: any) => item.itemId.toString());
+      // R6-FE-005 fix: NestJS returns {data:[...]} wrapper, not raw array
+      // res.data.filter(...) throws TypeError — must unwrap first
+      const items = (res.data?.data || res.data || []) as any[];
+      const tourIds = items.filter((item: any) => item.itemType === 'TOUR').map((item: any) => item.itemId.toString());
+      const destinationIds = items.filter((item: any) => item.itemType === 'DESTINATION').map((item: any) => item.itemId.toString());
       set({ tourIds, destinationIds });
     } catch (error) {
       console.error('Failed to sync wishlist', error);

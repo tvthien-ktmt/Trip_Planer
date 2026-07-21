@@ -222,6 +222,9 @@ export class AuthController {
 
   @Post('verify-otp')
   @HttpCode(HttpStatus.OK)
+  // R6-BE-003 fix: Add rate limiting — 6-digit OTP (1M combinations) must not be brute-forceable
+  // Compare: send-otp has 3/15min, login has 5/min. verify-otp now has 5/5min.
+  @Throttle({ default: { limit: 5, ttl: 300000 } })
   @ApiOperation({ summary: 'Verify OTP code for password reset or email verification' })
   async verifyOtp(@Body() body: { email: string; otp: string; purpose: string }) {
     // Validate OTP without consuming it (just check)

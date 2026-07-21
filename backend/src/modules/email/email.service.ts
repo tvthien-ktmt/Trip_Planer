@@ -7,7 +7,8 @@ export type EmailJobName =
   | 'send-booking-confirmation'
   | 'send-invoice'
   | 'send-refund-result'
-  | 'send-password-reset';
+  | 'send-password-reset'
+  | 'send-contact-notification';
 
 export interface VerifyEmailJob {
   to: string;
@@ -101,6 +102,15 @@ export class EmailService {
       attempts: 3,
       backoff: { type: 'exponential', delay: 3000 },
       removeOnComplete: 50,
+    });
+  }
+
+  // R6-BE-002 fix: Contact form notification email
+  async sendContactNotification(data: { to: string; fromName: string; fromEmail: string; subject: string; message: string }): Promise<void> {
+    await this.emailQueue.add('send-contact-notification', data, {
+      attempts: 3,
+      backoff: { type: 'exponential', delay: 5000 },
+      removeOnComplete: 100,
     });
   }
 }

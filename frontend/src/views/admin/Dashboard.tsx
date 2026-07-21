@@ -10,16 +10,49 @@ import { useAuthStore } from "../../stores/authStore";
 
 export default function Dashboard() {
   const [data, setData] = useState<{ stats: { icon: string; title: string; value: string; isUp: boolean; trend: string; iconBg: string; iconColor: string; }[]; revenueChart: number[]; recentBookings: { code: string; desc: string; status: string; }[]; } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
     const token = useAuthStore.getState().token;
     fetch('/api/admin/dashboard', {
       headers: { Authorization: `Bearer ${token}` }
     })
-      .then(res => res.json())
-      .then(setData)
-      .catch(console.error);
+      .then(res => {
+        // R6-FE-006 fix: Check res.ok before parsing JSON to prevent crash on 502/503
+        if (!res.ok) {
+          throw new Error(`Dashboard API error: ${res.status} ${res.statusText}`);
+        }
+        return res.json();
+      })
+      .then(json => {
+        // Validate that required fields exist before setting data
+        if (!json?.stats || !json?.revenueChart || !json?.recentBookings) {
+          throw new Error('Dashboard API returned incomplete data');
+        }
+        setData(json);
+      })
+      .catch(err => {
+        console.error('Dashboard load error:', err);
+        setError(err.message || 'Không thể tải dữ liệu dashboard');
+      });
   }, []);
+
+  if (error) {
+    return (
+      <div className="space-y-8">
+        <div className="p-6 rounded-xl border border-red-200 bg-red-50 dark:bg-red-900/20 dark:border-red-800">
+          <p className="text-red-600 dark:text-red-400 font-semibold">⚠ Lỗi tải dashboard</p>
+          <p className="text-red-500 text-sm mt-1">{error}</p>
+          <button
+            onClick={() => { setError(null); window.location.reload(); }}
+            className="mt-3 px-4 py-2 bg-red-600 text-white rounded-lg text-sm hover:bg-red-700 transition-colors"
+          >
+            Thử lại
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   if (!data) {
     return (

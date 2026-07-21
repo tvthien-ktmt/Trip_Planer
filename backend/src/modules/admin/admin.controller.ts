@@ -157,12 +157,18 @@ export class AdminController {
   @Patch('users/:id/lock')
   async lockUser(@Param('id', ParseBigIntPipe) id: bigint) {
     const user = await this.prisma.extended.user.findUnique({ where: { id: id } });
-    const newStatus = user?.status === 'ACTIVE' ? 'LOCKED' : 'ACTIVE';
+    const isCurrentlyActive = user?.status === 'ACTIVE';
+    // R6-DB-007 fix: Must set lockReason='ADMIN_LOCK' when locking.
+    // Without this, auto-unlock cron matches 'AUTO_FAILED_LOGIN:timestamp' and unlocks after 30 min,
+    // bypassing the explicit admin lock.
     await this.prisma.extended.user.update({
       where: { id: id },
-      data: { status: newStatus },
+      data: {
+        status: isCurrentlyActive ? 'LOCKED' : 'ACTIVE',
+        lockReason: isCurrentlyActive ? 'ADMIN_LOCK' : null,
+      },
     });
-    return { success: true };
+    return { success: true, status: isCurrentlyActive ? 'LOCKED' : 'ACTIVE' };
   }
 
   @Delete('users/:id')
@@ -286,6 +292,11 @@ export class AdminController {
         skip,
         take: limitNum,
         orderBy: { createdAt: 'desc' },
+        include: {
+          adminUser: {
+            select: { id: true, email: true, fullName: true, role: true },
+          },
+        },
       }),
     ]);
 
@@ -294,4 +305,132 @@ export class AdminController {
       meta: { total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) },
     };
   }
+
+  // R6 Phase 1: Airports endpoint (FE AirportList.tsx was 100% mock)
+  @Get('airports')
+  @ApiOperation({ summary: 'Get all airports' })
+  async getAirports(@Query('search') search?: string) {
+    const where = search
+      ? {
+          OR: [
+            { iataCode: { contains: search.toUpperCase() } },
+            { name: { contains: search } },
+            { city: { contains: search } },
+            { country: { contains: search } },
+          ],
+        }
+      : undefined;
+
+    const airports = await this.prisma.extended.airport.findMany({
+      where,
+      orderBy: { iataCode: 'asc' },
+    });
+    return { data: airports, meta: { total: airports.length } };
+  }
+
+  // R6 Phase 1: Payments list endpoint (FE PaymentList.tsx was 100% mock)
+  @Get('payments')
+  @ApiOperation({ summary: 'Get all payments (admin)' })
+  async getPayments(
+    @Query('page') page?: number,
+    @Query('limit') limit?: number,
+    @Query('status') status?: string,
+  ) {
+    const pageNum = Number(page) || 1;
+    const limitNum = Math.min(Number(limit) || 20, 200);
+    const skip = (pageNum - 1) * limitNum;
+
+    const where = status && status !== 'ALL' ? { status: status as any } : undefined;
+
+    const [total, data] = await Promise.all([
+      this.prisma.extended.payment.count({ where }),
+      this.prisma.extended.payment.findMany({
+        skip,
+        take: limitNum,
+        where,
+        orderBy: { createdAt: 'desc' },
+        include: {
+          booking: {
+            select: {
+              id: true,
+              bookingCode: true,
+              user: { select: { id: true, email: true, fullName: true } },
+            },
+          },
+        },
+      }),
+    ]);
+
+    return {
+      data,
+      meta: { total, page: pageNum, limit: limitNum, totalPages: Math.ceil(total / limitNum) },
+    };
+  }
+
+  // R6 Phase 1: Promos (Voucher) CRUD — FE PromoList.tsx was 100% mock
+  @Get('promos')
+  @ApiOperation({ summary: 'Get all promotional vouchers' })
+  async getPromos(@Query('search') search?: string) {
+    const where = search
+      ? { OR: [{ code: { contains: search } }, { description: { contains: search } }] }
+      : undefined;
+
+    const promos = await this.prisma.extended.voucher.findMany({
+      where,
+      orderBy: { createdAt: 'desc' },
+    });
+    return { data: promos };
+  }
+
+  @Post('promos')
+  @ApiOperation({ summary: 'Create a new promotional voucher' })
+  async createPromo(@Body() dto: any) {
+    const promo = await this.prisma.extended.voucher.create({
+      data: {
+        code: dto.code,
+        description: dto.description,
+        discountType: dto.discountType || 'PERCENT',
+        discountValue: dto.discountValue || 0,
+        minOrderAmount: dto.minOrderAmount || 0,
+        maxDiscountAmount: dto.maxDiscountAmount,
+        validFrom: dto.validFrom ? new Date(dto.validFrom) : new Date(),
+        validTo: dto.validTo ? new Date(dto.validTo) : new Date(Date.now() + 30 * 24 * 60 * 60 * 1000),
+        usageLimit: dto.usageLimit,
+      },
+    });
+    return { data: promo };
+  }
+
+  @Delete('promos/:id')
+  @ApiOperation({ summary: 'Delete a promotional voucher' })
+  async deletePromo(@Param('id', ParseBigIntPipe) id: bigint) {
+    await this.prisma.extended.voucher.delete({ where: { id } });
+    return { success: true };
+  }
+
+  // R6 Phase 1: Analytics passengers endpoint
+  @Get('analytics/passengers')
+  @ApiOperation({ summary: 'Get passenger analytics (monthly/daily aggregated)' })
+  async getPassengerAnalytics() {
+    const thirtyDaysAgo = new Date();
+    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+
+    const bookings = await this.prisma.extended.booking.groupBy({
+      by: ['createdAt'],
+      _count: { id: true },
+      where: {
+        createdAt: { gte: thirtyDaysAgo },
+        status: { in: ['CONFIRMED', 'COMPLETED'] },
+      },
+      orderBy: { createdAt: 'asc' },
+    });
+
+    return {
+      data: bookings.map(b => ({
+        date: b.createdAt,
+        count: b._count.id,
+      })),
+    };
+  }
 }
+

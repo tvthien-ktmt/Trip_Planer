@@ -43,8 +43,12 @@ export default function Profile() {
       toast.success('Cập nhật hồ sơ thành công!');
       
       // Update local auth store
+      // R6-FE-001 fix: Token lives in Zustand in-memory, not localStorage
+      // localStorage.getItem('token') always returns null → login overwrites valid token with empty → 401
       if (res.data?.data) {
-        login(res.data.data, localStorage.getItem('token') || '');
+        const { useAuthStore: authStoreRef } = await import('../../stores');
+        const currentToken = authStoreRef.getState().token;
+        login(res.data.data, currentToken || '');
       }
     } catch (err: any) {
       const { toast } = await import('sonner');

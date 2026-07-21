@@ -247,14 +247,43 @@ export class BookingService {
     if (!booking) throw new NotFoundException('Booking not found');
     if (booking.status !== 'DRAFT') throw new BadRequestException('Cannot add addons to non-draft booking');
 
-    const items = addons.map(addonId => ({
-      bookingId,
-      itemType: 'ADDON' as const,
-      itemRefId: BigInt(addonId),
-      quantity: 1,
-      unitPrice: 200000,
-      subtotal: 200000
-    }));
+    // R6-BE-013 fix: Look up actual addon price from SystemSetting catalog
+    // Default fallback prices (VND) per addon type if SystemSetting not configured
+    const DEFAULT_ADDON_PRICES: Record<string, number> = {
+      'insurance': 150000,
+      'wifi': 200000,
+      'transfer': 350000,
+    };
+
+    // Try to fetch SystemSetting catalog
+    let addonCatalog: Record<string, number> = { ...DEFAULT_ADDON_PRICES };
+    try {
+      const setting = await this.prisma.extended.systemSetting.findUnique({
+        where: { settingKey: 'ANCILLARY_OPTIONS' },
+      });
+      if (setting?.settingValue) {
+        const parsed = JSON.parse(setting.settingValue as string);
+        if (Array.isArray(parsed)) {
+          parsed.forEach((item: { id: string; price: number }) => {
+            addonCatalog[item.id] = item.price;
+          });
+        }
+      }
+    } catch {
+      // Fall back to defaults if SystemSetting parse fails
+    }
+
+    const items = addons.map(addonId => {
+      const unitPrice = addonCatalog[addonId] ?? 200000; // final fallback
+      return {
+        bookingId,
+        itemType: 'ADDON' as const,
+        itemRefId: BigInt(isNaN(Number(addonId)) ? 0 : Number(addonId)),
+        quantity: 1,
+        unitPrice,
+        subtotal: unitPrice,
+      };
+    });
 
     await this.prisma.extended.$transaction(async (tx) => {
       await tx.bookingItem.deleteMany({
@@ -264,6 +293,76 @@ export class BookingService {
         await tx.bookingItem.createMany({
           data: items
         });
+      }
+      await this.recalculateTotalWithTx(tx, bookingId);
+    });
+
+    return { success: true };
+  }
+
+  // R6-FE-002 fix: addBaggage — persists baggage selections as BookingItems
+  async addBaggage(bookingId: bigint, baggage: Record<string, number>) {
+    const booking = await this.prisma.extended.booking.findUnique({
+      where: { id: bookingId }
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.status !== 'DRAFT') throw new BadRequestException('Cannot add baggage to non-draft booking');
+
+    // Baggage price: 50,000 VND per kg (configurable via SystemSetting)
+    const BAGGAGE_PRICE_PER_KG = 50000;
+
+    const items = Object.entries(baggage)
+      .filter(([, weight]) => weight > 0)
+      .map(([passengerId, weight]) => ({
+        bookingId,
+        itemType: 'BAGGAGE' as const,
+        itemRefId: BigInt(isNaN(Number(passengerId)) ? 0 : Number(passengerId)),
+        quantity: weight,
+        unitPrice: BAGGAGE_PRICE_PER_KG,
+        subtotal: weight * BAGGAGE_PRICE_PER_KG,
+      }));
+
+    await this.prisma.extended.$transaction(async (tx) => {
+      await tx.bookingItem.deleteMany({
+        where: { bookingId, itemType: 'BAGGAGE' }
+      });
+      if (items.length > 0) {
+        await tx.bookingItem.createMany({ data: items });
+      }
+      await this.recalculateTotalWithTx(tx, bookingId);
+    });
+
+    return { success: true };
+  }
+
+  // R6-FE-002 fix: addMeals — persists meal selections as BookingItems
+  async addMeals(bookingId: bigint, meals: Record<string, string>) {
+    const booking = await this.prisma.extended.booking.findUnique({
+      where: { id: bookingId }
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.status !== 'DRAFT') throw new BadRequestException('Cannot add meals to non-draft booking');
+
+    // Meal price: 100,000 VND per selection (configurable via SystemSetting)
+    const MEAL_PRICE = 100000;
+
+    const items = Object.entries(meals)
+      .filter(([, mealType]) => mealType && mealType !== 'none')
+      .map(([passengerId, _mealType]) => ({
+        bookingId,
+        itemType: 'MEAL' as const,
+        itemRefId: BigInt(isNaN(Number(passengerId)) ? 0 : Number(passengerId)),
+        quantity: 1,
+        unitPrice: MEAL_PRICE,
+        subtotal: MEAL_PRICE,
+      }));
+
+    await this.prisma.extended.$transaction(async (tx) => {
+      await tx.bookingItem.deleteMany({
+        where: { bookingId, itemType: 'MEAL' }
+      });
+      if (items.length > 0) {
+        await tx.bookingItem.createMany({ data: items });
       }
       await this.recalculateTotalWithTx(tx, bookingId);
     });

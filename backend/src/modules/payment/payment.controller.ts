@@ -9,6 +9,7 @@ import {
   Headers,
   Req,
   UnauthorizedException,
+  InternalServerErrorException,
 } from '@nestjs/common';
 import { PaymentService } from './payment.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -120,20 +121,29 @@ export class PaymentController {
   async sepayWebhook(
     @Headers('x-sepay-signature') sig: string,
     @Body() payload: any,
+    @Req() req: Request,
   ) {
     // R5-BE-002 fix: HMAC-SHA256 verification for SePay webhook
+    // R6-BE-008 fix: Unconditional — if secret missing, throw immediately (don't bypass HMAC)
     const secret = this.configService.get('SEPAY_WEBHOOK_SECRET');
-    if (secret) {
-      const rawBody = JSON.stringify(payload);
-      const computed = createHmac('sha256', secret).update(rawBody).digest('hex');
-      if (
-        !sig ||
-        Buffer.byteLength(sig) !== Buffer.byteLength(computed) ||
-        !timingSafeEqual(Buffer.from(sig), Buffer.from(computed))
-      ) {
-        throw new UnauthorizedException('Invalid SePay signature');
-      }
+    if (!secret) {
+      throw new InternalServerErrorException('SEPAY_WEBHOOK_SECRET not configured — webhook security disabled');
     }
+
+    // R6-BE-009 fix: Use raw body bytes for HMAC calculation
+    // SePay signs RAW body bytes. JSON.stringify may produce different output (key order, whitespace).
+    // Enable rawBody in main.ts: express.json({ verify: (req, _res, buf) => { req.rawBody = buf; } })
+    const rawBodyStr = (req as any).rawBody?.toString('utf8') || JSON.stringify(payload);
+    const computed = createHmac('sha256', secret).update(rawBodyStr).digest('hex');
+
+    if (
+      !sig ||
+      Buffer.byteLength(sig) !== Buffer.byteLength(computed) ||
+      !timingSafeEqual(Buffer.from(sig), Buffer.from(computed))
+    ) {
+      throw new UnauthorizedException('Invalid SePay signature');
+    }
+
     return this.paymentService.sepayWebhook(payload);
   }
 
