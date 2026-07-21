@@ -5,14 +5,52 @@ import { Button } from '../../components/ui/Button';
 import { useAuthStore } from '../../stores';
 
 export default function Profile() {
-  const { user } = useAuthStore();
-  const [avatar, setAvatar] = useState(user?.avatar || "https://images.unsplash.com/photo-1535713875002-d1d0cf377fde?q=80&w=150&auto=format&fit=crop");
+  const { user, login } = useAuthStore();
+  const [avatar, setAvatar] = useState((user as any)?.avatarUrl || user?.avatar || "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=facearea&facepad=2&w=256&h=256&q=80");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // We should actually use react-hook-form but we can also just use native form since it's simple
   const handleAvatarChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) {
       const reader = new FileReader();
       reader.onload = (event) => setAvatar(event.target?.result as string);
       reader.readAsDataURL(e.target.files[0]);
+    }
+  };
+
+  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    setIsSubmitting(true);
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      fullName: formData.get('fullName'),
+      phone: formData.get('phone'),
+      nationality: formData.get('nationality'),
+      dateOfBirth: formData.get('dateOfBirth') ? new Date(formData.get('dateOfBirth') as string).toISOString() : null,
+      nationalId: formData.get('nationalId'),
+      passportNo: formData.get('passportNo'),
+    };
+
+    // Remove null/empty to avoid validation errors if optional
+    Object.keys(data).forEach(key => {
+      if (!data[key as keyof typeof data]) delete data[key as keyof typeof data];
+    });
+
+    try {
+      const { api } = await import('../../lib/api');
+      const res = await api.patch('/users/me', data);
+      const { toast } = await import('sonner');
+      toast.success('Cập nhật hồ sơ thành công!');
+      
+      // Update local auth store
+      if (res.data?.data) {
+        login(res.data.data, localStorage.getItem('token') || '');
+      }
+    } catch (err: any) {
+      const { toast } = await import('sonner');
+      toast.error(err.response?.data?.message || 'Có lỗi xảy ra khi cập nhật hồ sơ');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -34,31 +72,31 @@ export default function Profile() {
           </label>
         </div>
         <div>
-          <h2 className="text-xl font-bold text-[var(--text-primary)]">{user?.name || 'Người dùng mới'}</h2>
+          <h2 className="text-2xl font-bold text-[var(--text-primary)]">{(user as any)?.name || (user as any)?.fullName || 'Người dùng mới'}</h2>
           <p className="text-[var(--text-secondary)] flex items-center gap-2 mt-1">
             <Mail className="w-4 h-4" /> {user?.email || 'Chưa cập nhật email'}
           </p>
           <div className="mt-3">
-            <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-xs font-semibold rounded-full uppercase tracking-wider">Thành viên Hạng Bạc</span>
+            <span className="inline-block px-3 py-1 bg-blue-100 text-blue-700 dark:bg-blue-900/30 dark:text-blue-400 text-xs font-semibold rounded-full uppercase tracking-wider">{user?.role || 'Khách hàng'}</span>
           </div>
         </div>
       </div>
 
-      <form className="space-y-6 bg-[var(--bg-surface)] p-6 rounded-[var(--radius-radius-md)] border border-[var(--border-main)] shadow-sm">
+      <form onSubmit={handleSubmit} className="space-y-6 bg-[var(--bg-surface)] p-6 rounded-[var(--radius-radius-md)] border border-[var(--border-main)] shadow-sm">
         <h3 className="font-semibold text-lg text-[var(--text-primary)] border-b border-[var(--border-main)] pb-3 mb-6">Thông tin cơ bản</h3>
         
         <div className="grid sm:grid-cols-2 gap-6">
           <div>
             <label className="block text-sm font-medium text-[var(--text-primary)] mb-2 flex items-center gap-2"><UserIcon className="w-4 h-4 text-[var(--text-secondary)]" /> Họ và tên (Như trên giấy tờ)</label>
-            <input type="text" defaultValue={user?.name} className="w-full p-3 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] focus:border-[var(--color-ocean-600)] outline-none transition-colors" />
+            <input type="text" name="fullName" defaultValue={user?.name || user?.fullName} className="w-full p-3 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] focus:border-[var(--color-ocean-600)] outline-none transition-colors" />
           </div>
           <div>
             <label className="block text-sm font-medium text-[var(--text-primary)] mb-2 flex items-center gap-2"><Phone className="w-4 h-4 text-[var(--text-secondary)]" /> Số điện thoại</label>
-            <input type="tel" defaultValue="0987654321" className="w-full p-3 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] focus:border-[var(--color-ocean-600)] outline-none transition-colors" />
+            <input type="tel" name="phone" defaultValue={user?.phone || ''} className="w-full p-3 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] focus:border-[var(--color-ocean-600)] outline-none transition-colors" />
           </div>
           <div>
             <label className="block text-sm font-medium text-[var(--text-primary)] mb-2 flex items-center gap-2"><Globe className="w-4 h-4 text-[var(--text-secondary)]" /> Quốc tịch (Nationality)</label>
-            <select className="w-full p-3 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] focus:border-[var(--color-ocean-600)] outline-none transition-colors">
+            <select name="nationality" defaultValue={user?.nationality || 'vn'} className="w-full p-3 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] focus:border-[var(--color-ocean-600)] outline-none transition-colors">
               <option value="vn">Việt Nam (Vietnam)</option>
               <option value="us">Hoa Kỳ (USA)</option>
               <option value="jp">Nhật Bản (Japan)</option>
@@ -66,7 +104,7 @@ export default function Profile() {
           </div>
           <div>
             <label className="block text-sm font-medium text-[var(--text-primary)] mb-2 flex items-center gap-2"><MapPin className="w-4 h-4 text-[var(--text-secondary)]" /> Ngày sinh</label>
-            <input type="date" defaultValue="1990-01-01" className="w-full p-3 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] focus:border-[var(--color-ocean-600)] outline-none transition-colors" />
+            <input type="date" name="dateOfBirth" defaultValue={user?.dateOfBirth ? user.dateOfBirth.split('T')[0] : ''} className="w-full p-3 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] focus:border-[var(--color-ocean-600)] outline-none transition-colors" />
           </div>
         </div>
 
@@ -78,11 +116,7 @@ export default function Profile() {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Số CCCD</label>
-                <input type="text" defaultValue="07909000xxxx" className="w-full p-2.5 bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-lg text-[var(--text-primary)]" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Ngày cấp</label>
-                <input type="date" className="w-full p-2.5 bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-lg text-[var(--text-primary)]" />
+                <input type="text" name="nationalId" defaultValue={user?.nationalId || ''} className="w-full p-2.5 bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-lg text-[var(--text-primary)]" />
               </div>
             </div>
           </div>
@@ -92,11 +126,7 @@ export default function Profile() {
             <div className="space-y-4">
               <div>
                 <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Số Hộ chiếu (Passport No.)</label>
-                <input type="text" defaultValue="C8872xxx" className="w-full p-2.5 bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-lg text-[var(--text-primary)]" />
-              </div>
-              <div>
-                <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Ngày hết hạn (Expiry Date)</label>
-                <input type="date" defaultValue="2030-10-15" className="w-full p-2.5 bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-lg text-[var(--text-primary)]" />
+                <input type="text" name="passportNo" defaultValue={user?.passportNo || ''} className="w-full p-2.5 bg-[var(--bg-surface)] border border-[var(--border-main)] rounded-lg text-[var(--text-primary)]" />
               </div>
             </div>
           </div>
@@ -104,8 +134,8 @@ export default function Profile() {
 
         <div className="pt-6 mt-8 border-t border-[var(--border-main)] flex justify-end gap-4">
           <Button type="button" variant="outline">Hủy bỏ</Button>
-          <Button type="submit" variant="primary" className="flex items-center gap-2">
-            <Save className="w-4 h-4" /> Lưu cập nhật
+          <Button type="submit" variant="primary" disabled={isSubmitting} className="flex items-center gap-2 disabled:opacity-50">
+            <Save className="w-4 h-4" /> {isSubmitting ? 'Đang lưu...' : 'Lưu cập nhật'}
           </Button>
         </div>
       </form>

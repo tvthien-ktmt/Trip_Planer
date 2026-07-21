@@ -1,3 +1,4 @@
+import { ParseBigIntPipe } from '../../common/pipes/parse-bigint.pipe';
 import { Controller, Post, Body, Param, UseGuards } from '@nestjs/common';
 import { ReviewService } from './review.service';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
@@ -51,7 +52,7 @@ export class ReviewController {
   @ApiBearerAuth()
   @Post(':id/upvote')
   @ApiOperation({ summary: 'Upvote a review' })
-  async upvoteReview(@Param('id') id: string, @CurrentUser() user: any) {
-    return this.reviewService.upvoteReview(BigInt(id), user.id);
+  async upvoteReview(@Param('id', ParseBigIntPipe) id: bigint, @CurrentUser() user: any) {
+    return this.reviewService.upvoteReview(id, user.id);
   }
 }

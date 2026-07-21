@@ -1,14 +1,31 @@
-import { Heart, Star, MapPin } from 'lucide-react';
+import { Heart, Star, MapPin, Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import Link from 'next/link';
-
+import { useEffect, useState } from 'react';
+import { useWishlistStore } from '../../stores/wishlistStore';
+import { api } from '../../lib/api';
 
 export default function Wishlist() {
-  const wishlistItems = [
-    { id: '1', title: 'Khám phá Vịnh Hạ Long 2 ngày 1 đêm', type: 'Tour', rating: 4.8, price: '3,200,000', location: 'Hạ Long, Việt Nam', img: 'https://images.unsplash.com/photo-1528127269322-539801943592?q=80&w=400&auto=format&fit=crop' },
-    { id: '2', title: 'Khách sạn InterContinental Đà Nẵng', type: 'Hotel', rating: 4.9, price: '8,500,000 / đêm', location: 'Đà Nẵng, Việt Nam', img: 'https://images.unsplash.com/photo-1582650042456-4b20a40d5885?q=80&w=800&auto=format&fit=crop' },
-    { id: '3', title: 'Vé máy bay khứ hồi HCM - Tokyo', type: 'Flight', rating: null, price: '12,000,000', location: 'Narita, Nhật Bản', img: 'https://images.unsplash.com/photo-1503899036084-c55cdd92da26?q=80&w=400&auto=format&fit=crop' }
-  ];
+  // R5-FE-007 fix: Use real API instead of hardcoded wishlist items
+  const { tourIds, syncWishlist } = useWishlistStore();
+  const [wishlistItems, setWishlistItems] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  useEffect(() => {
+    const loadWishlist = async () => {
+      setIsLoading(true);
+      try {
+        await syncWishlist();
+        const res = await api.get('/wishlists');
+        setWishlistItems(res.data?.data || res.data || []);
+      } catch (e) {
+        setWishlistItems([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadWishlist();
+  }, [syncWishlist]);
 
   return (
     <div className="space-y-6">

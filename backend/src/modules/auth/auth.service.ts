@@ -173,32 +173,21 @@ export class AuthService {
     }
 
     if (user.status === 'LOCKED') {
-      if (user.lockReason !== 'AUTO_FAILED_LOGIN') {
+      const match = user.lockReason?.match(/^AUTO_FAILED_LOGIN:(\d+)$/);
+      if (!match) {
         throw new UnauthorizedException('Account is locked by administrator.');
       }
-      // BE-050 fix: Check if auto-unlock time has passed (30 min)
-      const lastLockEvent = await this.prisma.extended.activityLog.findFirst({
-        where: { userId: user.id, action: 'USER_ACCOUNT_LOCKED' },
-        orderBy: { createdAt: 'desc' },
-      });
-      if (lastLockEvent && lastLockEvent.description === 'Tài khoản bị khóa do đăng nhập sai quá 5 lần') {
-        const lockTime = lastLockEvent.createdAt.getTime();
-        const thirtyMinutes = 30 * 60 * 1000;
-        // Check if admin updated the user's status after the auto-lock
-        if (user.updatedAt.getTime() > lockTime + 1000) {
-          throw new UnauthorizedException('Account is temporarily locked');
-        }
-        if (Date.now() - lockTime > thirtyMinutes) {
-          // Auto-unlock after 30 minutes
-          await this.prisma.extended.user.update({
-            where: { id: user.id },
-            data: { status: 'ACTIVE', lockReason: null },
-          });
-        } else {
-          throw new UnauthorizedException('Account is temporarily locked. Try again in 30 minutes.');
-        }
+      const lockTime = parseInt(match[1], 10);
+      const thirtyMinutes = 30 * 60 * 1000;
+      
+      if (Date.now() - lockTime > thirtyMinutes) {
+        // Auto-unlock after 30 minutes
+        await this.prisma.extended.user.update({
+          where: { id: user.id },
+          data: { status: 'ACTIVE', lockReason: null },
+        });
       } else {
-        throw new UnauthorizedException('Account is temporarily locked');
+        throw new UnauthorizedException('Account is temporarily locked. Try again in 30 minutes.');
       }
     }
 
@@ -286,7 +275,7 @@ export class AuthService {
     if (recentFailures >= 5) {
       await this.prisma.extended.user.update({
         where: { id: userId },
-        data: { status: 'LOCKED', lockReason: 'AUTO_FAILED_LOGIN' },
+        data: { status: 'LOCKED', lockReason: `AUTO_FAILED_LOGIN:${Date.now()}` },
       });
       await this.activityLog.log({
         userId,
@@ -433,8 +422,10 @@ export class AuthService {
     });
 
     if (sessionToken) {
+      // V5-BE-003 fix: Hash session token before lookup (DB stores SHA-256 hash, not raw)
+      const sessionTokenHash = crypto.createHash('sha256').update(sessionToken).digest('hex');
       await this.prisma.extended.userSession.updateMany({
-        where: { userId, sessionToken },
+        where: { userId, sessionToken: sessionTokenHash },
         data: { isActive: false },
       });
     }
@@ -532,5 +523,33 @@ export class AuthService {
     });
 
     return { message: 'Password reset successfully' };
+  }
+
+  /**
+   * R5-FE-004 fix: Verify OTP without consuming it (used by /auth/verify-otp endpoint).
+   * Returns true if OTP is valid, false otherwise. Does NOT mark as consumed.
+   */
+  async verifyOtpCode(email: string, otp: string, purpose: 'REGISTER' | 'RESET_PASSWORD'): Promise<boolean> {
+    const otpRecord = await this.prisma.extended.otpCode.findFirst({
+      where: {
+        email,
+        purpose,
+        consumedAt: null,
+        expiresAt: { gt: new Date() },
+      },
+      orderBy: { id: 'desc' },
+    });
+    if (!otpRecord) return false;
+    if (otpRecord.attempts >= 5) return false;
+
+    const isValid = await bcrypt.compare(otp, otpRecord.codeHash);
+    if (!isValid) {
+      await this.prisma.extended.otpCode.update({
+        where: { id: otpRecord.id },
+        data: { attempts: { increment: 1 } },
+      });
+      return false;
+    }
+    return true;
   }
 }

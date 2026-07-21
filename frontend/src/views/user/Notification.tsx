@@ -1,18 +1,36 @@
 'use client';
-import { Bell, Info, AlertTriangle, Gift, CheckCircle2 } from 'lucide-react';
-import { useState } from 'react';
+import { Bell, Info, AlertTriangle, Gift, CheckCircle2, Loader2 } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { useNotificationStore } from '../../stores/notificationStore';
+import { api } from '../../lib/api';
 
 export default function Notification() {
   const [filter, setFilter] = useState('all');
+  const { notifications, isLoading, fetchNotifications, markAsRead } = useNotificationStore();
 
-  const notifications = [
-    { id: 1, type: 'system', title: 'Cập nhật hệ thống', desc: 'Bảo trì hệ thống vào 02:00 sáng ngày mai.', time: '2 giờ trước', isRead: false },
-    { id: 2, type: 'booking', title: 'Đặt vé thành công', desc: 'Vé máy bay VN8A2B đi Hà Nội đã được xác nhận.', time: '1 ngày trước', isRead: true },
-    { id: 3, type: 'promo', title: 'Khuyến mãi đặc biệt', desc: 'Giảm 20% cho chuyến bay nội địa tuần này.', time: '3 ngày trước', isRead: true },
-    { id: 4, type: 'alert', title: 'Đổi giờ bay', desc: 'Chuyến bay VN210 đổi giờ khởi hành sang 10:30.', time: '1 tuần trước', isRead: true },
-  ];
+  useEffect(() => {
+    fetchNotifications();
+  }, [fetchNotifications]);
 
-  const filtered = filter === 'all' ? notifications : notifications.filter(n => n.type === filter);
+  const handleMarkAllRead = async () => {
+    try {
+      await api.post('/notifications/mark-all-read');
+      fetchNotifications();
+    } catch (e) {
+      // Silent fail
+    }
+  };
+
+  const handleMarkRead = async (id: string | number) => {
+    try {
+      await api.patch(`/notifications/${id}/read`);
+      markAsRead(id);
+    } catch (e) {
+      markAsRead(id);
+    }
+  };
+
+  const filtered = filter === 'all' ? notifications : notifications.filter((n: any) => n.type === filter);
 
   const getIcon = (type: string) => {
     switch(type) {
@@ -28,7 +46,7 @@ export default function Notification() {
     <div className="max-w-3xl space-y-6">
       <div className="flex justify-between items-center">
         <h1 className="text-2xl font-bold text-gray-900 dark:text-white">Thông báo</h1>
-        <button className="text-sm font-medium text-blue-600 hover:underline">Đánh dấu tất cả đã đọc</button>
+        <button onClick={handleMarkAllRead} className="text-sm font-medium text-blue-600 hover:underline">Đánh dấu tất cả đã đọc</button>
       </div>
 
       <div className="flex gap-2 mb-6 overflow-x-auto pb-2">
@@ -47,28 +65,40 @@ export default function Notification() {
         ))}
       </div>
 
-      <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
-        {filtered.map(item => (
-          <div key={item.id} className={`p-4 flex gap-4 ${!item.isRead ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}>
-            <div className="mt-1 shrink-0">{getIcon(item.type)}</div>
-            <div className="flex-1">
-              <h3 className={`text-sm ${!item.isRead ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
-                {item.title}
-              </h3>
-              <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{item.desc}</p>
-              <p className="text-xs text-gray-500 mt-2">{item.time}</p>
+      {isLoading ? (
+        <div className="flex justify-center items-center py-12">
+          <Loader2 className="w-8 h-8 animate-spin text-blue-600" />
+        </div>
+      ) : (
+        <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 divide-y divide-gray-100 dark:divide-gray-700">
+          {filtered.map((item: any) => (
+            <div 
+              key={item.id} 
+              className={`p-4 flex gap-4 cursor-pointer ${!item.readAt ? 'bg-blue-50/50 dark:bg-blue-900/10' : ''}`}
+              onClick={() => !item.readAt && handleMarkRead(item.id)}
+            >
+              <div className="mt-1 shrink-0">{getIcon(item.type)}</div>
+              <div className="flex-1">
+                <h3 className={`text-sm ${!item.readAt ? 'font-bold text-gray-900 dark:text-white' : 'font-medium text-gray-700 dark:text-gray-300'}`}>
+                  {item.title}
+                </h3>
+                <p className="text-sm text-gray-600 dark:text-gray-400 mt-1">{item.body || item.message}</p>
+                <p className="text-xs text-gray-500 mt-2">
+                  {item.createdAt ? new Date(item.createdAt).toLocaleDateString('vi-VN', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit' }) : ''}
+                </p>
+              </div>
+              {!item.readAt && (
+                <div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
+              )}
             </div>
-            {!item.isRead && (
-              <div className="w-2 h-2 bg-blue-600 rounded-full mt-2"></div>
-            )}
-          </div>
-        ))}
-        {filtered.length === 0 && (
-          <div className="p-8 text-center text-gray-500">
-            Không có thông báo nào.
-          </div>
-        )}
-      </div>
+          ))}
+          {filtered.length === 0 && (
+            <div className="p-8 text-center text-gray-500">
+              Không có thông báo nào.
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

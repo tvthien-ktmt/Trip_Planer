@@ -36,6 +36,16 @@ export async function POST() {
       maxAge: 7 * 24 * 60 * 60, // 7 days
     });
 
+    response.cookies.set({
+      name: 'token',
+      value: data.access_token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 15 * 60, // 15 mins
+    });
+
     return response;
   } catch (error) {
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });

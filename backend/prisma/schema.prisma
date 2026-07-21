@@ -2,7 +2,8 @@
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
 generator client {
-  provider = "prisma-client-js"
+  provider        = "prisma-client-js"
+  previewFeatures = ["fullTextIndex", "fullTextSearch"]
 }
 
 datasource db {
@@ -86,14 +87,13 @@ model RefreshToken {
   userId     BigInt
   user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   tokenHash  String
-  tokenHint  String? // SHA-256 of raw token (first 16 hex chars) for O(1) lookup
+  tokenHint  String?   @unique // SHA-256 of raw token (first 16 hex chars) for O(1) lookup
   expiresAt  DateTime
   revokedAt  DateTime?
   deviceInfo String?
 
   @@index([userId, revokedAt])
   @@index([expiresAt])
-  @@index([tokenHint])
 }
 
 model OtpCode {
@@ -272,6 +272,8 @@ model Destination {
 
   // DB-002: reverse relation for Tour FK
   tours Tour[]
+
+  @@fulltext([name])
 }
 
 enum DestinationType {
@@ -298,6 +300,7 @@ model Tour {
   @@index([ratingAvg])
   @@index([basePrice])
   @@index([discountPercent])
+  @@fulltext([title, description])
 }
 
 model TourItinerary {
@@ -400,8 +403,8 @@ model BookingStatusHistory {
   id            BigInt   @id @default(autoincrement())
   bookingId     BigInt
   booking       Booking  @relation(fields: [bookingId], references: [id], onDelete: Cascade)
-  fromStatus    String?
-  toStatus      String
+  fromStatus    BookingStatus?
+  toStatus      BookingStatus
   changedBy     BigInt?
   changedByUser User?    @relation("ChangedStatusHistories", fields: [changedBy], references: [id])
   changedAt     DateTime @default(now())
@@ -536,6 +539,7 @@ model ReviewVote {
   createdAt DateTime @default(now())
 
   @@unique([reviewId, userId]) // BE-021: Prevent multiple votes by same user
+  @@index([userId]) // R5-DB-006: Add index for queries
 }
 
 enum ReviewableType {
@@ -620,6 +624,7 @@ model BlogPost {
   @@index([categoryId])
   @@index([authorId])
   @@index([publishedAt])
+  @@fulltext([title, content])
 }
 
 enum BlogStatus {
@@ -725,8 +730,8 @@ model AuditLog {
   id          BigInt   @id @default(autoincrement())
   adminUserId BigInt
   adminUser   User     @relation(fields: [adminUserId], references: [id])
-  action      String
-  targetType  String
+  action      AuditAction
+  targetType  AuditTarget
   targetId    BigInt?
   beforeData  Json?
   afterData   Json?
@@ -736,6 +741,28 @@ model AuditLog {
   @@index([createdAt]) // DB-012
   @@index([adminUserId, createdAt])
   @@index([targetType, targetId])
+}
+
+enum AuditAction {
+  CREATE
+  UPDATE
+  DELETE
+  RESTORE
+  LOCK
+  UNLOCK
+  LOGIN
+  LOGOUT
+}
+
+enum AuditTarget {
+  USER
+  BOOKING
+  FLIGHT
+  TOUR
+  PROMO
+  SETTING
+  BLOG
+  REVIEW
 }
 
 model ActivityLog {

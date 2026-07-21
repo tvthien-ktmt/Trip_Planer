@@ -1,3 +1,4 @@
+import { ParseBigIntPipe } from '../../common/pipes/parse-bigint.pipe';
 import { Controller, Get, Param, Query } from '@nestjs/common';
 import { TourService } from './tour.service';
 import { ApiTags, ApiOperation, ApiQuery } from '@nestjs/swagger';
@@ -52,14 +53,14 @@ export class TourController {
 
   @Get('tours/:id')
   @ApiOperation({ summary: 'Get tour details' })
-  async getTour(@Param('id') id: string) {
-    return this.tourService.getTour(BigInt(id));
+  async getTour(@Param('id', ParseBigIntPipe) id: bigint) {
+    return this.tourService.getTour(id);
   }
 
   @Get('tours/:id/related')
   @ApiOperation({ summary: 'Get related tours' })
-  async getRelatedTours(@Param('id') id: string) {
-    return this.tourService.getRelatedTours(BigInt(id));
+  async getRelatedTours(@Param('id', ParseBigIntPipe) id: bigint) {
+    return this.tourService.getRelatedTours(id);
   }
 
   @Get('destinations')

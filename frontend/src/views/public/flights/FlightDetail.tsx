@@ -2,7 +2,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
-import { useSearchFlightsQuery } from '../../../hooks/queries/useFlightQueries';
+import { useFlightDetailQuery } from '../../../hooks/queries/useFlightQueries';
 import { Plane, Check, ArrowLeft, Briefcase, Utensils, RefreshCcw, Info } from 'lucide-react';
 import { Flight, FlightLeg, FareClassPricing } from '../../../types';
 
@@ -11,11 +11,9 @@ export default function FlightDetail() {
   const id = params?.id as string;
   const [activeTab, setActiveTab] = useState('details');
   
-  // For demo, we just fetch all and find the one. In real app, we use a specific query useFlightDetailQuery
-  const { data: flights = [] } = useSearchFlightsQuery({});
-  const flight = flights.find((f: Flight) => String(f.id) === String(id));
+  const { data: flight, isLoading } = useFlightDetailQuery(id);
 
-  if (!flight) {
+  if (isLoading || !flight) {
     return <div className="p-12 text-center text-[var(--text-primary)]">Đang tải hoặc không tìm thấy chuyến bay...</div>;
   }
 
@@ -202,9 +200,18 @@ export default function FlightDetail() {
               <div className="md:border-l md:border-[var(--border-main)] md:pl-6 text-center w-full md:w-auto">
                 <div className="text-2xl font-bold text-[var(--color-coral-500)] mb-1">{price.price.toLocaleString()} ₫</div>
                 <div className="text-sm text-orange-500 mb-4 font-medium">Còn {price.availableSeats} chỗ</div>
-                <Link href="/booking/fare-class" className="block w-full px-8 py-3 bg-[var(--color-ocean-600)] hover:bg-[var(--color-ocean-700)] text-white font-medium rounded-xl transition-colors">
+                <button onClick={() => {
+                  import('../../../stores/bookingFlowStore').then(module => {
+                    module.useBookingFlowStore.getState().updateBookingData({ 
+                      selectedOutboundFlightId: flight.id, 
+                      outboundFareClass: price.class, 
+                      selectedFlightPricing: price.price 
+                    });
+                    window.location.href = '/booking/passenger';
+                  });
+                }} className="block w-full px-8 py-3 bg-[var(--color-ocean-600)] hover:bg-[var(--color-ocean-700)] text-white font-medium rounded-xl transition-colors">
                   Chọn hạng {price.class}
-                </Link>
+                </button>
               </div>
             </div>
           ))}

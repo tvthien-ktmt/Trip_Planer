@@ -1,9 +1,9 @@
 'use client';
 import { useEffect, useState } from "react";
 import Link from 'next/link';
-
 import { Zap, ArrowRight } from "lucide-react";
 import { Button } from "../ui/Button";
+import { api } from "../../lib/api";
 
 const TimeUnit = ({ value, label }: { value: number; label: string }) => (
   <div className="flex flex-col items-center p-2 bg-white dark:bg-gray-800 rounded-[var(--radius-radius-md)] min-w-[60px] shadow-sm">
@@ -13,25 +13,60 @@ const TimeUnit = ({ value, label }: { value: number; label: string }) => (
 );
 
 export const FlashSale = () => {
-  const [timeLeft, setTimeLeft] = useState({ hours: 12, minutes: 45, seconds: 30 });
+  const [timeLeft, setTimeLeft] = useState({ hours: 0, minutes: 0, seconds: 0 });
+  const [tour, setTour] = useState<any>(null);
+  const [promo, setPromo] = useState<{ code: string; expiresAt: string; discountPercent: number } | null>(null);
 
   useEffect(() => {
-    const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        let { hours, minutes, seconds } = prev;
-        if (seconds > 0) seconds--;
-        else {
-          seconds = 59;
-          if (minutes > 0) minutes--;
-          else { minutes = 59; if (hours > 0) hours--; }
+    const fetchFlashSale = async () => {
+      try {
+        const [tourRes, promoRes] = await Promise.all([
+          api.get('/tours?limit=1'),
+          api.get('/vouchers/flash-sale')
+        ]);
+        
+        const tourData = tourRes.data?.data || tourRes.data;
+        if (tourData && tourData.length > 0) {
+          setTour(tourData[0]);
         }
-        return { hours, minutes, seconds };
-      });
-    }, 1000);
-    return () => clearInterval(timer);
+
+        const promoData = promoRes.data?.data;
+        if (promoData) {
+          setPromo(promoData);
+        }
+      } catch (err) {
+        console.error(err);
+      }
+    };
+    fetchFlashSale();
   }, []);
 
-  
+  useEffect(() => {
+    if (!promo?.expiresAt) return;
+
+    const calculateTimeLeft = () => {
+      const difference = +new Date(promo.expiresAt) - +new Date();
+      if (difference > 0) {
+        return {
+          hours: Math.floor((difference / (1000 * 60 * 60)) % 24),
+          minutes: Math.floor((difference / 1000 / 60) % 60),
+          seconds: Math.floor((difference / 1000) % 60)
+        };
+      }
+      return { hours: 0, minutes: 0, seconds: 0 };
+    };
+
+    setTimeLeft(calculateTimeLeft());
+
+    const timer = setInterval(() => {
+      setTimeLeft(calculateTimeLeft());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, [promo]);
+
+  if (!tour) return null;
+
   return (
     <section className="py-[var(--spacing-space-8)]" style={{ background: "var(--color-ocean-900)" }}>
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -55,9 +90,9 @@ export const FlashSale = () => {
               Nhập mã{" "}
               <code className="font-utility font-semibold px-2 py-0.5 rounded-[4px]"
                 style={{ background: "var(--color-lantern-500)", color: "var(--color-ink-900)" }}>
-                TRIP2024
+                {promo?.code || 'TRIP2024'}
               </code>{" "}
-              giảm ngay 20% cho tất cả tour nội địa trong tháng này.
+              giảm ngay {promo?.discountPercent || 20}% cho chuyến đi này.
             </p>
 
             {/* Countdown — monospace font */}
@@ -75,15 +110,15 @@ export const FlashSale = () => {
             style={{ background: "var(--bg-surface)" }}>
             <div className="relative h-44 overflow-hidden">
               <img
-                src="https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?q=80&w=700&auto=format&fit=crop"
-                alt="Đà Nẵng"
+                src={tour.coverImage || "https://images.unsplash.com/photo-1559592413-7cec4d0cae2b?q=80&w=700&auto=format&fit=crop"}
+                alt={tour.title}
                 className="w-full h-full object-cover"
                 style={{ filter: "saturate(1.05) contrast(1.02)" }}
               />
               {/* Badge */}
               <div className="absolute top-3 left-3 px-2 py-1 rounded-full text-xs font-bold"
                 style={{ background: "var(--color-coral-500)", color: "#fff" }}>
-                −20%
+                −{promo?.discountPercent || 20}%
               </div>
             </div>
 
@@ -92,16 +127,16 @@ export const FlashSale = () => {
                 style={{ color: "var(--color-lantern-500)" }}>HOT DEAL</span>
               <h3 className="font-semibold text-[var(--text-primary)] mt-1 mb-3"
                 style={{ fontSize: "var(--text-heading)" }}>
-                Combo Đà Nẵng 3N2Đ + Vé máy bay
+                {tour.title}
               </h3>
               <div className="flex items-end gap-3 mb-4">
                 <span className="font-display font-bold" style={{ fontSize: "var(--text-display-md)", color: "var(--color-coral-500)" }}>
-                  3,600,000 ₫
+                  {(Number(tour.basePrice) * (1 - (promo?.discountPercent || 20)/100)).toLocaleString()} ₫
                 </span>
-                <span className="line-through text-[var(--text-secondary)] text-sm pb-1">4,500,000 ₫</span>
+                <span className="line-through text-[var(--text-secondary)] text-sm pb-1">{(Number(tour.basePrice)).toLocaleString()} ₫</span>
               </div>
 
-              <Button variant="cta" size="md" className="w-full" as={Link} href="/tours">
+              <Button variant="cta" size="md" className="w-full" as={Link} href={`/tours/${tour.id}`}>
                 Đặt ngay <ArrowRight className="w-4 h-4 ml-1" />
               </Button>
             </div>

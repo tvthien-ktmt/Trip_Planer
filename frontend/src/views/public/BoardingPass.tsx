@@ -1,10 +1,41 @@
 'use client';
-import { useParams, useSearchParams } from 'next/navigation';
+import { useParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { Plane } from 'lucide-react';
 
 export default function BoardingPass() {
   const params = useParams();
   const id = params?.id as string;
+
+  const [ticket, setTicket] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+
+  useEffect(() => {
+    const fetchTicket = async () => {
+      try {
+        const { api } = await import('../../lib/api');
+        const res = await api.get(`/bookings/${id}/ticket`);
+        setTicket(res.data?.data || res.data);
+      } catch (e: any) {
+        setError('Không thể tải thông tin vé. Bạn có thể không có quyền truy cập hoặc vé không tồn tại.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (id) fetchTicket();
+  }, [id]);
+
+  if (loading) {
+    return <div className="min-h-screen flex justify-center items-center"><div className="animate-pulse text-blue-600">Đang tải thẻ lên máy bay...</div></div>;
+  }
+
+  if (error || !ticket) {
+    return <div className="min-h-screen flex justify-center items-center text-red-500 font-medium">{error || 'Không tìm thấy vé'}</div>;
+  }
+
+  const passenger = ticket.passengers?.[0] || {};
+  const flight = ticket.flight || {};
 
   return (
     <div className="max-w-2xl mx-auto py-12 px-4 flex justify-center">
@@ -22,43 +53,41 @@ export default function BoardingPass() {
 
           <div className="flex items-center justify-between mb-8">
             <div className="text-center">
-              <p className="text-5xl font-black text-gray-900 dark:text-white">SGN</p>
-              <p className="text-gray-500 mt-1">Hồ Chí Minh</p>
+              <p className="text-5xl font-black text-gray-900 dark:text-white">{flight.departure}</p>
             </div>
             <div className="flex flex-col items-center">
               <Plane className="w-8 h-8 text-blue-600 rotate-90" />
-              <p className="text-sm font-bold text-gray-900 dark:text-white mt-2">VN210</p>
+              <p className="text-sm font-bold text-gray-900 dark:text-white mt-2">{flight.flightNumber}</p>
             </div>
             <div className="text-center">
-              <p className="text-5xl font-black text-gray-900 dark:text-white">HAN</p>
-              <p className="text-gray-500 mt-1">Hà Nội</p>
+              <p className="text-5xl font-black text-gray-900 dark:text-white">{flight.destination}</p>
             </div>
           </div>
 
           <div className="grid grid-cols-3 gap-6 bg-gray-50 dark:bg-gray-900 p-6 rounded-2xl">
             <div>
               <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Passenger</p>
-              <p className="font-bold text-gray-900 dark:text-white truncate">NGUYEN VAN A</p>
+              <p className="font-bold text-gray-900 dark:text-white truncate">{passenger.fullName?.toUpperCase() || passenger.firstName?.toUpperCase() + ' ' + passenger.lastName?.toUpperCase() || ''}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Date</p>
-              <p className="font-bold text-gray-900 dark:text-white">20 OCT 2026</p>
+              <p className="font-bold text-gray-900 dark:text-white">{flight.departureTime ? new Date(flight.departureTime).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' }).toUpperCase() : ''}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Boarding Time</p>
-              <p className="font-bold text-blue-600 text-xl">09:30</p>
+              <p className="font-bold text-blue-600 text-xl">{flight.departureTime ? new Date(flight.departureTime).toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' }) : ''}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Gate</p>
-              <p className="font-bold text-gray-900 dark:text-white text-xl">12A</p>
+              <p className="font-bold text-gray-900 dark:text-white text-xl">{flight.gate || 'TBA'}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">Seat</p>
-              <p className="font-bold text-gray-900 dark:text-white text-xl">15C</p>
+              <p className="font-bold text-gray-900 dark:text-white text-xl">{passenger.seatCode || 'AUTO'}</p>
             </div>
             <div>
               <p className="text-xs text-gray-500 uppercase tracking-widest mb-1">PNR</p>
-              <p className="font-bold text-gray-900 dark:text-white tracking-widest">{id?.toUpperCase() || 'VN8A2B'}</p>
+              <p className="font-bold text-gray-900 dark:text-white tracking-widest">{ticket.bookingCode || id?.toUpperCase()}</p>
             </div>
           </div>
         </div>

@@ -1,6 +1,7 @@
 'use client';
 import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
+import { useState, useEffect } from 'react';
 import { Calendar, User, Clock, ArrowLeft, Share2, Heart } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import DOMPurify from 'isomorphic-dompurify';
@@ -9,33 +10,31 @@ export default function BlogDetail() {
   const params = useParams();
   const slug = params?.slug as string;
   
-  // Mock data for Blog Detail
-  const post = {
-    title: "10 Địa Điểm Không Thể Bỏ Qua Khi Đến Kyoto Mùa Thu",
-    coverImage: "https://images.unsplash.com/photo-1493976040374-85c8e12f0c0e?q=80&w=1200&auto=format&fit=crop",
-    author: "Travel Expert",
-    date: "2024-10-15T00:00:00Z",
-    readTime: 5,
-    category: "Destination",
-    content: `
-      <p>Mùa thu ở Kyoto là một trong những cảnh sắc tuyệt vời nhất mà bạn có thể trải nghiệm tại Nhật Bản. Khi những tán lá chuyển từ xanh sang đỏ, vàng và cam rực rỡ, toàn bộ thành phố như được khoác lên mình một tấm áo mới, lộng lẫy và cổ kính hơn bao giờ hết.</p>
-      
-      <h3>1. Chùa Thanh Thủy (Kiyomizu-dera)</h3>
-      <p>Kiyomizu-dera không chỉ nổi tiếng với kiến trúc bằng gỗ độc đáo mà còn là địa điểm ngắm lá đỏ đẹp bậc nhất. Đứng trên ban công chính, bạn có thể phóng tầm mắt bao quát toàn cảnh rừng phong đang chuyển màu bên dưới.</p>
-      
-      <img src="https://images.unsplash.com/photo-1492571350019-22de08371fd3?q=80&w=800&auto=format&fit=crop" alt="Kiyomizu-dera" />
-      
-      <h3>2. Đền Tofuku-ji</h3>
-      <p>Chỉ cách ga Kyoto một trạm dừng, Tofuku-ji là một kho báu ẩn giấu với cây cầu Tsutenkyo nổi tiếng. Từ trên cầu nhìn xuống là một "biển lá đỏ" đẹp đến ngỡ ngàng.</p>
-      
-      <h3>Lời Khuyên Khi Du Lịch Kyoto Mùa Thu</h3>
-      <ul>
-        <li><strong>Nên đi sớm:</strong> Để tránh đám đông, hãy cố gắng đến các điểm tham quan nổi tiếng ngay khi chúng vừa mở cửa (thường là 6:00 hoặc 8:00 sáng).</li>
-        <li><strong>Mang giày thoải mái:</strong> Bạn sẽ phải đi bộ rất nhiều trên những con đường lát đá dốc.</li>
-        <li><strong>Kiểm tra lịch chiếu sáng:</strong> Nhiều ngôi chùa tổ chức sự kiện thắp sáng đèn (light-up) vào buổi tối, tạo nên khung cảnh lung linh huyền ảo.</li>
-      </ul>
-    `
-  };
+  const [post, setPost] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPost = async () => {
+      try {
+        const { api } = await import('../../lib/api');
+        const res = await api.get(`/blog/${slug}`);
+        setPost(res.data?.data || res.data);
+      } catch (e) {
+        setPost(null);
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (slug) fetchPost();
+  }, [slug]);
+
+  if (loading) {
+    return <div className="min-h-screen flex justify-center items-center"><div className="animate-pulse text-blue-500">Đang tải bài viết...</div></div>;
+  }
+  
+  if (!post) {
+    return <div className="min-h-screen flex justify-center items-center">Không tìm thấy bài viết</div>;
+  }
 
   return (
     <div className="bg-[var(--bg-main)] min-h-screen pb-24">

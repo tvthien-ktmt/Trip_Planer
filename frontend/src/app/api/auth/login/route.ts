@@ -18,8 +18,6 @@ export async function POST(request: Request) {
 
     const response = NextResponse.json(data);
     
-    // R3-FE-002: Set HttpOnly cookie ONLY for refresh_token. 
-    // access_token is returned in JSON for client to handle.
     response.cookies.set({
       name: 'refresh_token',
       value: data.refresh_token,
@@ -28,6 +26,16 @@ export async function POST(request: Request) {
       sameSite: 'lax',
       path: '/',
       maxAge: 7 * 24 * 60 * 60, // 7 days
+    });
+
+    response.cookies.set({
+      name: 'token',
+      value: data.access_token,
+      httpOnly: true,
+      secure: process.env.NODE_ENV === 'production',
+      sameSite: 'lax',
+      path: '/',
+      maxAge: 15 * 60, // 15 mins
     });
 
     return response;

@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import { api } from '../lib/api';
 
 interface Notification {
   id: string | number;
@@ -10,19 +11,29 @@ interface Notification {
 
 interface NotificationState {
   notifications: Notification[];
+  isLoading: boolean;
   setNotifications: (notifications: Notification[]) => void;
   addNotification: (notification: Notification) => void;
   markAsRead: (id: string | number) => void;
+  fetchNotifications: () => Promise<void>;
 }
 
+// R5-FE-015 fix: Remove hardcoded mock notifications, add fetchNotifications action
 export const useNotificationStore = create<NotificationState>((set) => ({
-  notifications: [
-    { id: 1, type: "PROMOTION", title: "Ưu đãi 20% Tour Đà Lạt", body: "Áp dụng cho booking nhóm 4 người trở lên." },
-    { id: 2, type: "SYSTEM", title: "Booking #TRIP123 thành công", body: "Cảm ơn bạn đã đặt tour. Vui lòng kiểm tra email." }
-  ],
+  notifications: [],
+  isLoading: false,
   setNotifications: (notifications) => set({ notifications }),
   addNotification: (notification) => set((state) => ({ notifications: [notification, ...state.notifications] })),
   markAsRead: (id) => set((state) => ({
     notifications: state.notifications.map((n) => n.id === id ? { ...n, readAt: new Date().toISOString() } : n)
   })),
+  fetchNotifications: async () => {
+    set({ isLoading: true });
+    try {
+      const res = await api.get('/notifications');
+      set({ notifications: res.data?.data || res.data || [], isLoading: false });
+    } catch {
+      set({ isLoading: false });
+    }
+  },
 }));

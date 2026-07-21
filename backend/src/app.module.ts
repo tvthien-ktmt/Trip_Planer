@@ -20,6 +20,7 @@ import { RbacModule } from './modules/rbac/rbac.module';
 import { EmailModule } from './modules/email/email.module';
 import { BlogModule } from './modules/blog/blog.module';
 import { UploadModule } from './modules/upload/upload.module';
+import { FaqModule } from './modules/faq/faq.module';
 import * as redisStore from 'cache-manager-ioredis';
 import * as Joi from 'joi';
 import { LoggerModule } from 'nestjs-pino';
@@ -48,6 +49,18 @@ import { APP_FILTER } from '@nestjs/core';
         JWT_REFRESH_SECRET: Joi.string().required(),
         APP_SECRET: Joi.string().required(),
         VNPAY_HASH_SECRET: Joi.string().optional(),
+        // R5-BE-004 fix: SePay env vars validation
+        SEPAY_ACCOUNT_NUMBER: Joi.string().required(),
+        SEPAY_BANK_CODE: Joi.string().required(),
+        SEPAY_API_URL: Joi.string().default('https://qr.sepay.vn/img'),
+        SEPAY_TEMPLATE: Joi.string().valid('', 'compact', 'qronly', 'standee', 'compact2').default('compact'),
+        SEPAY_WEBHOOK_SECRET: Joi.string().required(),
+        // SMTP env vars for email
+        SMTP_HOST: Joi.string().optional(),
+        SMTP_PORT: Joi.number().default(587),
+        SMTP_USER: Joi.string().optional(),
+        SMTP_PASS: Joi.string().optional(),
+        SMTP_FROM: Joi.string().optional(),
       }),
     }),
     ThrottlerModule.forRoot([
@@ -93,6 +106,7 @@ import { APP_FILTER } from '@nestjs/core';
     EmailModule,
     BlogModule,
     UploadModule,
+    FaqModule,
   ],
   controllers: [],
   providers: [

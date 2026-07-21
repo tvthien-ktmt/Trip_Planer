@@ -1,8 +1,32 @@
 'use client';
 import { useState } from 'react';
 import { useChecklistStore } from '../../stores';
-import { mockChecklistTemplates } from '../../mocks/data';
 import { CheckCircle2, Circle, Plus, Trash2, FolderPlus } from 'lucide-react';
+
+import { ChecklistItem } from '../../types';
+
+type TemplateItem = Omit<ChecklistItem, "id" | "isCompleted">;
+
+const mockChecklistTemplates: { id: string; name: string; items: TemplateItem[] }[] = [
+  { id: 'tpl-1', name: 'Đi biển', items: [
+      { text: 'Đồ bơi', category: 'Luggage' },
+      { text: 'Kem chống nắng', category: 'Health' },
+      { text: 'Kính râm', category: 'Other' }
+    ] 
+  },
+  { id: 'tpl-2', name: 'Leo núi', items: [
+      { text: 'Giày leo núi', category: 'Luggage' },
+      { text: 'Áo gió', category: 'Luggage' },
+      { text: 'Bình nước', category: 'Other' }
+    ] 
+  },
+  { id: 'tpl-3', name: 'Công tác', items: [
+      { text: 'Laptop & Sạc', category: 'Other' },
+      { text: 'Tài liệu', category: 'Documents' },
+      { text: 'Trang phục lịch sự', category: 'Luggage' }
+    ] 
+  }
+];
 
 export default function Checklist() {
   const { items, toggleItem, addItem, removeItem, loadTemplate, clearChecklist } = useChecklistStore();

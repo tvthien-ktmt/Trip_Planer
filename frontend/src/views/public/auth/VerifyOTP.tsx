@@ -2,6 +2,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter , useSearchParams} from 'next/navigation';
 import { toast } from 'sonner';
+import { api } from '../../../lib/api';
 
 export default function VerifyOTP() {
   const [otp, setOtp] = useState(['', '', '', '', '', '']);
@@ -38,6 +39,14 @@ export default function VerifyOTP() {
     setIsLoading(true);
     try {
       const otpCode = otp.join('');
+      // R5-FE-004 fix: Call BE to verify OTP instead of accepting any 6 digits
+      try {
+        await api.post('/auth/verify-otp', { email, otp: otpCode, purpose: 'RESET_PASSWORD' });
+      } catch (err: any) {
+        toast.error(err.response?.data?.message || 'OTP không đúng hoặc đã hết hạn');
+        return;
+      }
+      // Store verified email for reset-password page
       sessionStorage.setItem('reset-email', email);
       sessionStorage.setItem('reset-otp', otpCode);
       navigate.push('/reset-password');

@@ -50,4 +50,22 @@ export class UserController {
   async updateProfile(@CurrentUser() user: any, @Body() data: UpdateProfileDto) {
     return this.userService.updateProfile(user.id, data);
   }
+
+  @Get('me/stats')
+  @ApiOperation({ summary: 'Get user dashboard KPIs (bookings, points, notifications)' })
+  async getStats(@CurrentUser() user: any) {
+    return this.userService.getUserStats(user.id);
+  }
+
+  @Get('me/membership')
+  @ApiOperation({ summary: 'Get user membership and tier info' })
+  async getMembership(@CurrentUser() user: any) {
+    return this.userService.getUserMembership(user.id);
+  }
+
+  @Get('me/points')
+  @ApiOperation({ summary: 'Get user point transaction history' })
+  async getPoints(@CurrentUser() user: any) {
+    return this.userService.getUserPoints(user.id);
+  }
 }

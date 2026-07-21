@@ -1,3 +1,4 @@
+import { ParseBigIntPipe } from '../../common/pipes/parse-bigint.pipe';
 import {
   Controller,
   Post,
@@ -148,10 +149,10 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Logout specific device (revoke one session)' })
   async revokeSession(
-    @Param('id') id: string,
+    @Param('id', ParseBigIntPipe) id: bigint,
     @CurrentUser() user: any,
   ) {
-    await this.sessionService.revokeSession(BigInt(id), user.id);
+    await this.sessionService.revokeSession(id, user.id);
     await this.activityLog.log({
       userId: user.id,
       action: 'SESSION_REVOKED',
@@ -215,6 +216,85 @@ export class AuthController {
   @ApiOperation({ summary: 'Reset password using OTP' })
   async resetPassword(@Body() dto: ResetPasswordDto) {
     return this.authService.resetPassword(dto.email, dto.otp, dto.newPassword);
+  }
+
+  // ===== OTP VERIFICATION (for FE VerifyOTP.tsx) =====
+
+  @Post('verify-otp')
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Verify OTP code for password reset or email verification' })
+  async verifyOtp(@Body() body: { email: string; otp: string; purpose: string }) {
+    // Validate OTP without consuming it (just check)
+    const isValid = await this.authService.verifyOtpCode(body.email, body.otp, body.purpose as any);
+    if (!isValid) {
+      const { BadRequestException: BadReq } = await import('@nestjs/common');
+      throw new BadReq('OTP không đúng hoặc đã hết hạn');
+    }
+    return { success: true, message: 'OTP hợp lệ' };
+  }
+
+  // ===== DEVICE MANAGEMENT ALIASES =====
+
+  @Get('devices')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Alias: List active devices (same as /sessions)' })
+  async getDevices(
+    @CurrentUser() user: any,
+    @Headers('x-session-token') currentSessionToken?: string,
+  ) {
+    return this.sessionService.getUserSessions(user.id, currentSessionToken);
+  }
+
+  @Delete('devices/:id')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Alias: Logout specific device (revoke one session)' })
+  async revokeDevice(
+    @Param('id', ParseBigIntPipe) id: bigint,
+    @CurrentUser() user: any,
+  ) {
+    await this.sessionService.revokeSession(id, user.id);
+    return { success: true, message: 'Device logged out' };
+  }
+
+  @Post('devices/revoke-others')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Logout all devices except current' })
+  async revokeOtherDevices(
+    @CurrentUser() user: any,
+    @Headers('x-session-token') currentSessionToken?: string,
+  ) {
+    if (currentSessionToken) {
+      await this.sessionService.revokeOtherSessions(user.id, currentSessionToken);
+    } else {
+      // Revoke all if no session token provided
+      await this.sessionService.revokeAllSessions(user.id);
+    }
+    return { success: true, message: 'Other devices logged out' };
+  }
+
+  // ===== LOGIN HISTORY =====
+
+  @Get('login-history')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Get login history (active sessions list)' })
+  async getLoginHistory(
+    @CurrentUser() user: any,
+  ) {
+    // Return sessions as login history with mapped fields
+    const sessions = await this.sessionService.getUserSessions(user.id);
+    return sessions.map((s: any) => ({
+      id: s.id,
+      device: s.deviceName || 'Unknown Device',
+      ipAddress: s.location || s.ipAddress || 'Unknown',
+      loginAt: s.createdAt || s.lastActiveAt,
+      lastActiveAt: s.lastActiveAt,
+      success: s.isActive !== false,
+    }));
   }
 }
 

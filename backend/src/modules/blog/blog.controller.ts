@@ -1,3 +1,4 @@
+import { ParseBigIntPipe } from '../../common/pipes/parse-bigint.pipe';
 import {
   Controller,
   Get,
@@ -123,12 +124,12 @@ export class BlogController {
     summary: 'Update a blog post (title, content, tags, SEO fields)',
   })
   async updatePost(
-    @Param('id') id: string,
+    @Param('id', ParseBigIntPipe) id: bigint,
     @Body() dto: UpdateBlogPostDto,
     @CurrentUser() user: any,
   ) {
     return this.blogService.updatePost(
-      BigInt(id),
+      id,
       dto,
       user.id,
       user.role === 'ADMIN',
@@ -143,8 +144,8 @@ export class BlogController {
   @ApiOperation({
     summary: 'Publish a post immediately or schedule for future date',
   })
-  async publishPost(@Param('id') id: string, @Body() dto: PublishBlogPostDto) {
-    return this.blogService.publishPost(BigInt(id), dto.scheduledAt);
+  async publishPost(@Param('id', ParseBigIntPipe) id: bigint, @Body() dto: PublishBlogPostDto) {
+    return this.blogService.publishPost(id, dto.scheduledAt);
   }
 
   @Patch(':id/unpublish')
@@ -153,8 +154,8 @@ export class BlogController {
   @Permissions('BLOG_PUBLISH')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Unpublish a post (revert to DRAFT)' })
-  async unpublishPost(@Param('id') id: string) {
-    return this.blogService.unpublishPost(BigInt(id));
+  async unpublishPost(@Param('id', ParseBigIntPipe) id: bigint) {
+    return this.blogService.unpublishPost(id);
   }
 
   @Delete(':id')
@@ -163,8 +164,8 @@ export class BlogController {
   @Permissions('BLOG_DELETE')
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Delete a blog post' })
-  async deletePost(@Param('id') id: string) {
-    return this.blogService.deletePost(BigInt(id));
+  async deletePost(@Param('id', ParseBigIntPipe) id: bigint) {
+    return this.blogService.deletePost(id);
   }
 
   // ===== Categories & Tags management =====

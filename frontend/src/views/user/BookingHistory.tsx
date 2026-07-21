@@ -1,19 +1,43 @@
 'use client';
-import { useState } from 'react';
-import { Plane, Calendar, Eye, FileText } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { Plane, Calendar, Eye, FileText, Loader2 } from 'lucide-react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { routes } from '../../lib/routes';
+import { api } from '../../lib/api';
 
 export default function BookingHistory() {
   const [filter, setFilter] = useState('upcoming');
   const navigate = useRouter();
 
-  const bookings = [
-    { id: 'VN8A2B', status: 'upcoming', from: 'SGN', to: 'HAN', date: '20/10/2026', time: '10:00', airline: 'Vietnam Airlines', price: 2150000 },
-    { id: 'VJ9C4D', status: 'completed', from: 'HAN', to: 'DAD', date: '15/09/2026', time: '14:30', airline: 'Vietjet Air', price: 1200000 },
-    { id: 'QH2E1F', status: 'cancelled', from: 'SGN', to: 'PQC', date: '05/08/2026', time: '09:15', airline: 'Bamboo Airways', price: 1800000 },
-  ];
+  // R5-FE-016 fix: Fetch real bookings from BE instead of hardcoded array
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+  
+  useEffect(() => {
+    const loadBookings = async () => {
+      setIsLoading(true);
+      try {
+        const res = await api.get('/bookings/my');
+        const data = res.data?.data || res.data || [];
+        setBookings(data.map((b: any) => ({
+          id: b.bookingCode || b.id,
+          status: b.status === 'CONFIRMED' ? 'upcoming' : b.status === 'COMPLETED' ? 'completed' : b.status === 'CANCELLED' ? 'cancelled' : 'upcoming',
+          from: b.departure || 'N/A',
+          to: b.destination || 'N/A',
+          date: b.createdAt ? new Date(b.createdAt).toLocaleDateString('vi-VN') : '',
+          time: b.createdAt ? new Date(b.createdAt).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '',
+          airline: b.airline || 'Trip Planner',
+          price: b.totalAmount || 0,
+        })));
+      } catch (e) {
+        setBookings([]);
+      } finally {
+        setIsLoading(false);
+      }
+    };
+    loadBookings();
+  }, []);
 
   const filtered = bookings.filter(b => b.status === filter);
 

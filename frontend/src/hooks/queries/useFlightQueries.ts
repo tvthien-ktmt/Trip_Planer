@@ -29,3 +29,14 @@ export const useSearchFlightsQuery = (params: FlightSearchParams) => {
     enabled: !!params.departureAirportCode && !!params.arrivalAirportCode,
   });
 };
+
+export const useFlightDetailQuery = (id: string | number) => {
+  return useQuery({
+    queryKey: ['flight', id],
+    queryFn: async () => {
+      const { data } = await api.get(`/flights/${id}`);
+      return data.data || data;
+    },
+    enabled: !!id,
+  });
+};

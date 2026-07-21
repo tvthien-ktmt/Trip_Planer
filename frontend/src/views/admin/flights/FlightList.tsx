@@ -1,25 +1,55 @@
+import { useState, useEffect } from "react";
 import { Plus, Search, Edit2, Trash2 } from "lucide-react";
 import { useRouter } from 'next/navigation';
 import { toast } from "sonner";
 import { Button } from "../../../components/ui/Button";
+import { api } from "../../../lib/api";
 
 export default function FlightList() {
   const navigate = useRouter();
+  const [searchTerm, setSearchTerm] = useState('');
+  const [statusFilter, setStatusFilter] = useState('');
 
-  const flights = [
-    { id: "VN210", from: "SGN", to: "HAN", date: "20/10/2026", time: "10:00", price: 1500000, status: "Active" },
-    { id: "VN321", from: "HAN", to: "DAD", date: "21/10/2026", time: "14:30", price: 1200000, status: "Active" },
-    { id: "VN456", from: "DAD", to: "SGN", date: "22/10/2026", time: "09:00", price: 1100000, status: "Delayed" },
-    { id: "VN789", from: "SGN", to: "PQC", date: "23/10/2026", time: "07:15", price: 950000, status: "Cancelled" },
-    { id: "VN012", from: "HAN", to: "CXR", date: "24/10/2026", time: "16:45", price: 1800000, status: "Active" },
-  ];
+  // R5-FE-005 fix: Fetch real flights from BE
+  const [flights, setFlights] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleDelete = () => {
+  const fetchFlights = async () => {
+    setIsLoading(true);
+    try {
+      const res = await api.get('/admin/flights');
+      const data = res.data?.data || res.data || [];
+      setFlights(data.map((f: any) => ({
+        id: String(f.id),
+        flightNumber: f.flightNumber || String(f.id),
+        from: f.departure || 'N/A',
+        to: f.destination || 'N/A',
+        date: f.departureTime ? new Date(f.departureTime).toLocaleDateString('vi-VN') : '',
+        time: f.departureTime ? new Date(f.departureTime).toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }) : '',
+        price: f.basePrice || 0,
+        status: f.status || 'ACTIVE'
+      })));
+    } catch (e) {
+      toast.error('Không thể tải danh sách chuyến bay');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchFlights(); }, []);
+
+  const handleDelete = (id: string) => {
     toast.warning("CẢNH BÁO: Bạn có chắc chắn muốn xóa chuyến bay này? Hành động này không thể hoàn tác.", {
       action: {
         label: 'Đồng ý',
-        onClick: () => {
-          toast.success("Đã xóa chuyến bay thành công");
+        onClick: async () => {
+          try {
+            await api.delete(`/admin/flights/${id}`);
+            toast.success("Đã xóa chuyến bay thành công");
+            fetchFlights();
+          } catch (e) {
+            toast.error("Xóa chuyến bay thất bại");
+          }
         }
       },
       cancel: { label: 'Hủy', onClick: () => {} }
@@ -88,15 +118,15 @@ export default function FlightList() {
               {flights.map((f, i) => (
                 <tr key={f.id} className="group transition-colors"
                   style={{ background: i % 2 === 0 ? "var(--bg-surface)" : "var(--color-mist-50)", opacity: 0.9 }}>
-                  <td className="px-4 py-4 font-utility font-bold text-[var(--text-primary)]" style={{ fontSize: "var(--text-body)" }}>{f.id}</td>
+                  <td className="px-4 py-4 font-utility font-bold text-[var(--text-primary)]" style={{ fontSize: "var(--text-body)" }}>{f.flightNumber}</td>
                   <td className="px-4 py-4 text-[var(--text-primary)]" style={{ fontSize: "var(--text-body)" }}>{f.from} ✈ {f.to}</td>
                   <td className="px-4 py-4 text-[var(--text-secondary)]" style={{ fontSize: "var(--text-body)" }}>{f.time} • {f.date}</td>
                   <td className="px-4 py-4 font-utility text-[var(--text-primary)]" style={{ fontSize: "var(--text-body)" }}>{f.price.toLocaleString()} ₫</td>
                   <td className="px-4 py-4">
                     <span className="px-2 py-1 rounded-[6px] text-[10px] font-bold uppercase tracking-wider"
                       style={{ 
-                        background: f.status === "Active" ? "rgba(59,113,254,0.12)" : f.status === "Delayed" ? "rgba(232,163,61,0.12)" : "rgba(216,72,58,0.12)",
-                        color: f.status === "Active" ? "var(--color-ocean-600)" : f.status === "Delayed" ? "var(--color-lantern-500-dark)" : "var(--color-danger)"
+                        background: f.status === "ACTIVE" ? "rgba(59,113,254,0.12)" : f.status === "DELAYED" ? "rgba(232,163,61,0.12)" : "rgba(216,72,58,0.12)",
+                        color: f.status === "ACTIVE" ? "var(--color-ocean-600)" : f.status === "DELAYED" ? "var(--color-lantern-500-dark)" : "var(--color-danger)"
                       }}>
                       {f.status}
                     </span>
@@ -107,7 +137,7 @@ export default function FlightList() {
                       className="text-[var(--text-secondary)] hover:text-[var(--color-ocean-600)]">
                       <Edit2 className="w-4 h-4" />
                     </Button>
-                    <Button variant="ghost" size="sm" onClick={handleDelete}
+                    <Button variant="ghost" size="sm" onClick={() => handleDelete(f.id)}
                       className="text-[var(--text-secondary)] hover:text-[var(--color-danger)]">
                       <Trash2 className="w-4 h-4" />
                     </Button>

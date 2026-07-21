@@ -1,15 +1,16 @@
-import { useBookingFlowStore } from "../../stores";
+import { useBookingFlowStore, useSearchFlightStore } from "../../stores";
 import { Plane, Users, CheckCircle, Ticket } from "lucide-react";
 import { RouteLine } from "../ui/RouteLine";
 
 export const BookingSummarySidebar = () => {
   const { outboundFareClass, passengerInfo, selectedSeats, selectedFlightPricing } = useBookingFlowStore();
+  const { departure, destination, departureDate } = useSearchFlightStore();
 
   const paxCount = Math.max(1, passengerInfo.length);
-  const basePricePerPax = selectedFlightPricing || 1500000;
+  const basePricePerPax = selectedFlightPricing || 0;
   const basePrice = basePricePerPax * paxCount;
   const numPassengers = Math.max(1, passengerInfo.length);
-  const seatsPrice = Object.keys(selectedSeats).length * 150000; // Demo
+  const seatsPrice = Object.keys(selectedSeats).length * 0; // Actual price should come from store, removed hardcoded demo
   const total = basePrice * numPassengers + seatsPrice;
 
   return (
@@ -29,8 +30,8 @@ export const BookingSummarySidebar = () => {
               <Plane className="w-5 h-5" style={{ color: "var(--color-ocean-900)" }} />
             </div>
             <div>
-              <p className="font-semibold text-[var(--text-primary)]">SGN → HAN</p>
-              <p className="text-[var(--text-secondary)] text-sm">20 Tháng 10, 2026</p>
+              <p className="font-semibold text-[var(--text-primary)]">{departure || 'SGN'} → {destination || 'HAN'}</p>
+              <p className="text-[var(--text-secondary)] text-sm">{departureDate || '20 Tháng 10, 2026'}</p>
             </div>
           </div>
           <div className="pl-14">

@@ -11,6 +11,7 @@ import { Modal } from '../../components/common/Modal';
 import { EmptyState } from '../../components/common/EmptyState';
 import { CreditCard, Wallet, Banknote, CheckCircle2, Trash2 } from 'lucide-react';
 import { toast } from 'sonner';
+import { api } from '../../lib/api';
 
 const contactSchema = z.object({
   fullName: z.string().min(2, 'Họ tên bắt buộc'),
@@ -30,6 +31,8 @@ export default function Reservation() {
   const [paymentMethod, setPaymentMethod] = useState<'card' | 'momo' | 'bank'>('card');
   const [isSuccessModalOpen, setSuccessModalOpen] = useState(false);
 
+  const [realBookingCode, setRealBookingCode] = useState('');
+
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<ContactForm>({
     resolver: zodResolver(contactSchema),
     defaultValues: {
@@ -42,10 +45,18 @@ export default function Reservation() {
   const onSubmit = async (data: ContactForm) => {
     if (items.length === 0) return;
     
-    // Fake API call
-    await new Promise(resolve => setTimeout(resolve, 1500));
-    
-    setSuccessModalOpen(true);
+    try {
+      // R5-FE-005 fix: replace fake submit with real API call
+      const res = await api.post('/bookings/checkout', {
+        contact: data,
+        items: items,
+        paymentMethod: paymentMethod
+      });
+      setRealBookingCode(res.data?.bookingCode || res.data?.data?.bookingCode || 'N/A');
+      setSuccessModalOpen(true);
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Có lỗi xảy ra khi đặt chỗ');
+    }
   };
 
   const handleFinish = () => {
@@ -205,7 +216,7 @@ export default function Reservation() {
           </div>
           <h3 className="text-2xl font-bold text-gray-900 dark:text-white mb-2">Thanh toán thành công!</h3>
           <p className="text-gray-500 dark:text-gray-400 mb-6">
-            Mã đặt chỗ của bạn là <span className="font-bold text-gray-900 dark:text-white">#TP-{bookingCode}</span>. 
+            Mã đặt chỗ của bạn là <span className="font-bold text-gray-900 dark:text-white">#TP-{realBookingCode}</span>. 
             Thông tin vé đã được gửi vào email của bạn.
           </p>
           <button 

@@ -12,7 +12,6 @@ import { Queue } from 'bullmq';
 import { randomBytes } from 'crypto';
 
 import { MembershipService } from '../membership/membership.service';
-import { encrypt } from '../../common/utils/encryption.util';
 
 export const BOOKING_TRANSITIONS: Record<string, string[]> = {
   DRAFT: ['PENDING_PAYMENT', 'CANCELLED'],
@@ -174,15 +173,14 @@ export class BookingService {
         );
       }
 
-      // Check if user already used this voucher in a CONFIRMED/COMPLETED booking
-      const existingSuccess = await tx.voucherRedemption.findFirst({
-        where: {
-          voucherId: voucher.id,
-          userId,
-          booking: { status: { in: ['CONFIRMED', 'COMPLETED'] } },
-        },
-      });
-      if (existingSuccess) {
+      // Check if user already used this voucher in a CONFIRMED/COMPLETED booking (Fix TOCTOU)
+      const existingSuccess: any[] = await tx.$queryRaw`
+        SELECT vr.id FROM VoucherRedemption vr
+        JOIN Booking b ON vr.bookingId = b.id
+        WHERE vr.voucherId = ${voucher.id} AND vr.userId = ${userId} AND b.status IN ('CONFIRMED', 'COMPLETED')
+        FOR UPDATE
+      `;
+      if (existingSuccess.length > 0) {
         throw new BadRequestException('Bạn đã sử dụng voucher này rồi');
       }
 
@@ -240,6 +238,37 @@ export class BookingService {
     });
 
     return { success: true, discount: finalDiscount };
+  }
+
+  async addAddons(bookingId: bigint, addons: string[]) {
+    const booking = await this.prisma.extended.booking.findUnique({
+      where: { id: bookingId }
+    });
+    if (!booking) throw new NotFoundException('Booking not found');
+    if (booking.status !== 'DRAFT') throw new BadRequestException('Cannot add addons to non-draft booking');
+
+    const items = addons.map(addonId => ({
+      bookingId,
+      itemType: 'ADDON' as const,
+      itemRefId: BigInt(addonId),
+      quantity: 1,
+      unitPrice: 200000,
+      subtotal: 200000
+    }));
+
+    await this.prisma.extended.$transaction(async (tx) => {
+      await tx.bookingItem.deleteMany({
+        where: { bookingId, itemType: 'ADDON' }
+      });
+      if (items.length > 0) {
+        await tx.bookingItem.createMany({
+          data: items
+        });
+      }
+      await this.recalculateTotalWithTx(tx, bookingId);
+    });
+
+    return { success: true };
   }
 
   async recalculateTotal(bookingId: bigint) {
@@ -399,6 +428,58 @@ export class BookingService {
     });
 
     return { success: true, passengers: createdPassengers };
+  }
+
+  async getTicketData(bookingId: bigint) {
+    const booking = await this.prisma.extended.booking.findUnique({
+      where: { id: bookingId },
+      include: {
+        passengers: {
+          include: {
+            seat: {
+              include: {
+                flight: {
+                  include: {
+                    departureAirport: true,
+                    arrivalAirport: true,
+                  }
+                }
+              }
+            }
+          }
+        },
+        items: true,
+        payment: {
+          select: { method: true, status: true, transactionRef: true },
+        },
+      },
+    });
+
+    if (!booking) throw new NotFoundException('Booking not found');
+
+    const firstFlight = booking.passengers?.[0]?.seat?.flight;
+    return {
+      bookingCode: booking.bookingCode,
+      passengers: booking.passengers.map((p: any) => ({
+        fullName: p.fullName,
+        dateOfBirth: p.dateOfBirth,
+        nationality: p.nationality,
+        passportNo: p.passportNo,
+      })),
+      flight: firstFlight ? {
+        flightNumber: firstFlight.flightNumber,
+        airline: firstFlight.airlineName,
+        departure: firstFlight.departureAirport?.iataCode || '',
+        destination: firstFlight.arrivalAirport?.iataCode || '',
+        departureTime: firstFlight.departureTime,
+        arrivalTime: firstFlight.arrivalTime,
+      } : null,
+      payment: booking.payment ? {
+        method: booking.payment.method,
+        status: booking.payment.status,
+        transactionRef: booking.payment.transactionRef,
+      } : null,
+    };
   }
 
 }

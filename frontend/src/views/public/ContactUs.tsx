@@ -3,6 +3,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { MapPin, Phone, Mail, Clock, Send } from 'lucide-react';
 import { toast } from 'sonner';
+import { api } from '../../lib/api';
 
 const contactSchema = z.object({
   name: z.string().min(2, 'Vui lòng nhập họ tên'),
@@ -19,9 +20,14 @@ export default function ContactUs() {
   });
 
   const onSubmit = async (data: ContactForm) => {
-    await new Promise(resolve => setTimeout(resolve, 1000));
-    toast.success('Gửi tin nhắn thành công! Chúng tôi sẽ phản hồi sớm nhất.');
-    reset();
+    try {
+      // R5-FE-005 fix: replace fake submit with real API call
+      await api.post('/contact', data);
+      toast.success('Gửi tin nhắn thành công! Chúng tôi sẽ phản hồi sớm nhất.');
+      reset();
+    } catch (error: any) {
+      toast.error(error?.response?.data?.message || 'Có lỗi xảy ra khi gửi tin nhắn');
+    }
   };
 
   return (

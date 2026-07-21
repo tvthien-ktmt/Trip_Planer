@@ -1,7 +1,7 @@
 'use client';
 import { usePathname } from 'next/navigation';
 import { useRouter } from 'next/navigation';
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from 'next/link';
 import {
   Bell, Moon, Sun, Menu, X, User as UserIcon, Globe, LogOut,
@@ -32,8 +32,15 @@ export const Header = () => {
   const wishlistCount = useWishlistStore((state) => state.tourIds.length + state.destinationIds.length);
   const cartCount = useBookingCartStore((state) => state.items.length);
   const notifications = useNotificationStore((state) => state.notifications);
+  const fetchNotifications = useNotificationStore((state) => state.fetchNotifications);
 
   const isDark = mounted && theme === "dark";
+
+  useEffect(() => {
+    if (isAuthenticated && mounted) {
+      fetchNotifications();
+    }
+  }, [isAuthenticated, mounted, fetchNotifications]);
 
   const navLinks = [
     { name: t("header.home", "Trang chủ"), path: "/" },

@@ -1,15 +1,39 @@
-'use client';
+import { useState, useEffect } from 'react';
 import { Search, Eye, Filter } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { api } from '../../../lib/api';
 
 export default function BookingList() {
   const navigate = useRouter();
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const bookings = [
-    { id: 'VN8A2B', user: 'Nguyễn Văn A', email: 'nva@gmail.com', flight: 'VN210', date: '20/10/2026', total: 2150000, status: 'Confirmed' },
-    { id: 'VJ9C4D', user: 'Trần Thị B', email: 'ttb@gmail.com', flight: 'VJ123', date: '21/10/2026', total: 1500000, status: 'Pending' },
-    { id: 'QH2E1F', user: 'Lê Văn C', email: 'lvc@gmail.com', flight: 'QH456', date: '22/10/2026', total: 3200000, status: 'Cancelled' },
-  ];
+  // R5-FE-005 fix: Fetch real bookings from BE
+  const [bookings, setBookings] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchBookings = async () => {
+    setIsLoading(true);
+    try {
+      const res = await api.get('/admin/bookings');
+      const data = res.data?.data || res.data || [];
+      setBookings(data.map((b: any) => ({
+        id: b.bookingCode || b.id,
+        user: b.user?.fullName || 'Khách vãng lai',
+        email: b.user?.email || b.contactEmail || '',
+        flight: b.flight?.flightNumber || b.tour?.title || 'N/A',
+        date: b.createdAt ? new Date(b.createdAt).toLocaleDateString('vi-VN') : '',
+        total: b.totalAmount || 0,
+        status: b.status || 'PENDING_PAYMENT'
+      })));
+    } catch (e) {
+      toast.error('Không thể tải danh sách đặt chỗ');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchBookings(); }, []);
 
   return (
     <div className="space-y-6">
@@ -64,8 +88,8 @@ export default function BookingList() {
                   <td className="p-4 font-bold text-gray-900 dark:text-white">{b.total.toLocaleString()} ₫</td>
                   <td className="p-4">
                     <span className={`px-2 py-1 rounded-md text-xs font-bold ${
-                      b.status === 'Confirmed' ? 'bg-green-100 text-green-700' : 
-                      b.status === 'Pending' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
+                      b.status === 'CONFIRMED' || b.status === 'COMPLETED' ? 'bg-green-100 text-green-700' : 
+                      b.status === 'PENDING_PAYMENT' ? 'bg-yellow-100 text-yellow-700' : 'bg-red-100 text-red-700'
                     }`}>
                       {b.status}
                     </span>

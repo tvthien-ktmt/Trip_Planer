@@ -95,4 +95,38 @@ export class FlightService {
       where: { flightId: id },
     });
   }
+
+  async getFlightStatus(flightNo: string) {
+    // Find today's/upcoming flight with this number
+    const today = new Date();
+    today.setHours(0,0,0,0);
+    const flight = await this.prisma.extended.flight.findFirst({
+      where: {
+        flightNumber: flightNo.toUpperCase(),
+        departureTime: {
+          gte: today
+        }
+      },
+      orderBy: {
+        departureTime: 'asc'
+      },
+      include: {
+        departureAirport: true,
+        arrivalAirport: true
+      }
+    });
+
+    if (!flight) throw new NotFoundException('Flight not found');
+
+    return {
+      id: flight.flightNumber,
+      status: flight.status === 'SCHEDULED' ? 'On Time' : flight.status,
+      from: flight.departureAirport.iataCode,
+      to: flight.arrivalAirport.iataCode,
+      date: flight.departureTime.toLocaleDateString('vi-VN'),
+      departure: flight.departureTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      arrival: flight.arrivalTime.toLocaleTimeString('vi-VN', { hour: '2-digit', minute: '2-digit' }),
+      gate: 'TBA'
+    };
+  }
 }

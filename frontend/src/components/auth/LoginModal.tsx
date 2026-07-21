@@ -51,11 +51,7 @@ export const LoginModal: React.FC = () => {
       // Store token in cookies for Next.js middleware
       const { access_token, user } = data;
       login(realUser, access_token);
-      const secure = process.env.NODE_ENV === "production" ? "; secure" : "";
-      document.cookie = `token=${access_token}; path=/; max-age=${15*60}; samesite=lax${secure}`;
-      if (data.refresh_token) {
-        document.cookie = `refresh_token=${data.refresh_token}; path=/; max-age=${7*24*60*60}; samesite=lax${secure}`;
-      }
+      // token and refresh_token are set as httpOnly by BFF
 
       try {
         const { useWishlistStore } = await import('../../stores/wishlistStore');

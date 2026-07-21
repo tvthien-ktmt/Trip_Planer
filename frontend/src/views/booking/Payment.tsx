@@ -7,15 +7,25 @@ import { BookingStep } from '../../types';
 
 import SePayModal from '../../components/payment/SePayModal';
 
+import { toast } from 'sonner';
+
 export default function Payment() {
   const navigate = useRouter();
-  const { setStep, outboundFareClass, passengerInfo, addons, baggage, submitBooking, isLoading, selectedFlightPricing } = useBookingFlowStore();
+  const { setStep, passengerInfo, addons, baggage, submitBooking, isLoading, selectedFlightPricing } = useBookingFlowStore();
   const [method, setMethod] = useState('card');
   const [sepayData, setSepayData] = useState<{ url: string; id: string; expiredAt: Date } | null>(null);
 
   useEffect(() => {
     setStep(BookingStep.PAYMENT);
   }, [setStep]);
+
+  const paxCount = Math.max(1, passengerInfo.length);
+  const basePricePerPax = selectedFlightPricing || 0;
+  const basePrice = basePricePerPax * paxCount;
+  const taxes = basePrice * 0.1; // 10% VAT
+  const baggageCost = Object.values(baggage).reduce((sum, w) => sum + (w * 50000), 0);
+  const addonsCost = (addons.length * 200000) + baggageCost;
+  const total = basePrice + taxes + addonsCost;
 
   const handlePay = async () => {
     if (!submitBooking) {
@@ -36,17 +46,9 @@ export default function Payment() {
         navigate.push('/booking/success');
       }
     } else {
-      alert(res.error || 'Lỗi đặt vé, vui lòng thử lại');
+      toast.error(res.error || 'Lỗi đặt vé, vui lòng thử lại');
     }
   };
-
-  const paxCount = Math.max(1, passengerInfo.length);
-  const basePricePerPax = selectedFlightPricing || 1500000;
-  const basePrice = basePricePerPax * paxCount;
-  const taxes = basePrice * 0.3;
-  const baggageCost = Object.values(baggage).reduce((sum, w) => sum + (w * 50000), 0);
-  const addonsCost = (addons.length * 200000) + baggageCost;
-  const total = basePrice + taxes + addonsCost;
 
   return (
     <>
@@ -73,12 +75,8 @@ export default function Payment() {
             </div>
             
             {method === 'card' && (
-              <div className="mt-6 space-y-4">
-                <input type="text" placeholder="Số thẻ" className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white" />
-                <div className="grid grid-cols-2 gap-4">
-                  <input type="text" placeholder="MM/YY" className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white" />
-                  <input type="text" placeholder="CVC" className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-lg text-gray-900 dark:text-white" />
-                </div>
+              <div className="mt-6 space-y-4 text-sm text-[var(--text-secondary)]">
+                * Bạn sẽ được chuyển hướng đến cổng thanh toán an toàn để nhập thông tin thẻ.
               </div>
             )}
           </div>

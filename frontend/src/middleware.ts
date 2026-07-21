@@ -3,9 +3,14 @@ import type { NextRequest } from 'next/server';
 
 import { jwtVerify } from 'jose';
 
-const JWT_SECRET = new TextEncoder().encode(process.env.JWT_ACCESS_SECRET || 'dev-secret');
-
+// R5-FE-006 fix: Throw on missing JWT_ACCESS_SECRET instead of using insecure fallback
 export async function middleware(request: NextRequest) {
+  const JWT_SECRET_RAW = process.env.JWT_ACCESS_SECRET;
+  if (!JWT_SECRET_RAW) {
+    throw new Error('JWT_ACCESS_SECRET environment variable is required');
+  }
+  const JWT_SECRET = new TextEncoder().encode(JWT_SECRET_RAW);
+
   const { pathname } = request.nextUrl;
 
   // Paths that require ADMIN or STAFF role

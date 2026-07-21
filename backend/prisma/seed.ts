@@ -89,6 +89,11 @@ const tourDestinations = [
 async function main() {
   console.log('🌱 Starting database seed...');
 
+  if (process.env.NODE_ENV === 'production') {
+    console.warn('⚠️ WARNING: Refusing to run seed in production environment!');
+    return;
+  }
+
   // Clean existing data in reverse dependency order
   console.log('🧹 Cleaning existing data...');
   if (process.env.NODE_ENV !== 'production') {
@@ -182,9 +187,18 @@ async function main() {
   console.log(`✅ Seeded ${permissions.length} permissions`);
 
   // ===== 2. Users =====
-  console.log('👥 Seeding users...');
-  const passwordHash = await bcrypt.hash('Admin@123', 10);
-  const userPasswordHash = await bcrypt.hash('User@123', 10);
+  // ===== Seed Admin & Demo Users =====
+  console.log('👤 Seeding users...');
+  
+  const adminPassword = process.env.ADMIN_PASSWORD;
+  const userPassword = process.env.USER_PASSWORD;
+  
+  if (!adminPassword || !userPassword) {
+    throw new Error('ADMIN_PASSWORD and USER_PASSWORD environment variables are required to seed users.');
+  }
+
+  const passwordHash = await bcrypt.hash(adminPassword, 12);
+  const userPasswordHash = await bcrypt.hash(userPassword, 12);
 
   // Create admin user
   const adminUser = await prisma.user.upsert({
@@ -216,6 +230,11 @@ async function main() {
     },
   });
 
+  if (process.env.NODE_ENV === 'production') {
+    console.log('✅ Essential data seeded. Skipping dummy data in production.');
+    return;
+  }
+
   // Create demo user
   const demoUser = await prisma.user.upsert({
     where: { email: 'user@tripplanner.vn' },
@@ -246,6 +265,7 @@ async function main() {
         fullName: `${firstName} ${lastName}`,
         role: 'USER',
         status,
+        lockReason: status === 'LOCKED' ? `AUTO_FAILED_LOGIN:${Date.now()}` : null,
         emailVerifiedAt: new Date(),
         phone: `090${randomInt(1000000, 9999999)}`,
         dateOfBirth: randomDate(new Date('1980-01-01'), new Date('2000-12-31')),
@@ -258,7 +278,7 @@ async function main() {
         data: {
           userId: user.id,
           action: 'USER_ACCOUNT_LOCKED',
-          description: 'Tài khoản bị khóa tự động',
+          description: 'Tài khoản bị khóa do đăng nhập sai quá 5 lần',
           ipAddress: '127.0.0.1',
         }
       });
@@ -528,7 +548,7 @@ async function main() {
       data: {
         bookingId: booking.id,
         fromStatus: 'DRAFT',
-        toStatus: status,
+        toStatus: status as any,
         changedBy: user.id,
         changedAt: bookingDate,
       },
@@ -681,10 +701,7 @@ async function main() {
 
   console.log('\n🎉 Database seeding completed successfully!');
   console.log('='.repeat(50));
-  console.log('📋 Test Accounts:');
-  console.log('  Admin:  admin@tripplanner.vn / Admin@123');
-  console.log('  Staff:  staff@tripplanner.vn / Admin@123');
-  console.log('  User:   user@tripplanner.vn  / User@123');
+  console.log('📋 Test Accounts Created');
   console.log('='.repeat(50));
   console.log('📊 Seeded Data Summary:');
   console.log(`  Permissions: ${permissions.length}`);

@@ -28,7 +28,12 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
   }
 
   async validate(req: any, payload: any) {
-    const token = req.headers.authorization.split(' ')[1];
+    // R5-BE-009 fix: Null check on authorization header
+    const authHeader = req.headers?.authorization;
+    if (!authHeader?.startsWith('Bearer ')) {
+      throw new UnauthorizedException('Missing or invalid Authorization header');
+    }
+    const token = authHeader.split(' ')[1];
     const isBlacklisted = await this.authService.isTokenBlacklisted(token);
     if (isBlacklisted) {
       throw new UnauthorizedException('Token has been revoked');

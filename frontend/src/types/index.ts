@@ -121,12 +121,19 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  fullName?: string;
   avatar?: string;
+  avatarUrl?: string;
   phone?: string;
   dob?: string;
   status?: string;
   createdAt?: string;
   membershipTier?: string;
+  nationality?: string;
+  dateOfBirth?: string;
+  nationalId?: string;
+  passport?: string;
+  passportNo?: string;
   role: 'USER' | 'ADMIN' | 'STAFF';
 }
 

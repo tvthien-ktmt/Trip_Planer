@@ -1,5 +1,5 @@
 'use client';
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useBookingFlowStore } from '../../stores';
 import { Coffee } from 'lucide-react';
@@ -10,15 +10,31 @@ export default function Meal() {
   const navigate = useRouter();
   const { setStep, updateBookingData, meals } = useBookingFlowStore();
 
+  const [options, setOptions] = useState<{ id: string; name: string; price: number; img: string }[]>([]);
+  const [loading, setLoading] = useState(true);
+
   useEffect(() => {
     setStep(BookingStep.MEAL);
+    const fetchOptions = async () => {
+      try {
+        const { api } = await import('../../lib/api');
+        const res = await api.get('/flights/ancillary/options');
+        if (res.data?.data?.meals || res.data?.meals) {
+          setOptions(res.data?.data?.meals || res.data?.meals);
+        }
+      } catch (e) {
+        // Fallback
+        setOptions([
+          { id: 'm1', name: 'Mì xào hải sản', price: 150000, img: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=300&q=80' },
+          { id: 'm2', name: 'Cơm gà quay', price: 150000, img: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=300&q=80' },
+          { id: 'm3', name: 'Bánh mì thịt', price: 80000, img: 'https://images.unsplash.com/photo-1509722747041-616f39b57569?auto=format&fit=crop&w=300&q=80' },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchOptions();
   }, [setStep]);
-
-  const options = [
-    { id: 'm1', name: 'Mì xào hải sản', price: 150000, img: 'https://images.unsplash.com/photo-1585032226651-759b368d7246?auto=format&fit=crop&w=300&q=80' },
-    { id: 'm2', name: 'Cơm gà quay', price: 150000, img: 'https://images.unsplash.com/photo-1604908176997-125f25cc6f3d?auto=format&fit=crop&w=300&q=80' },
-    { id: 'm3', name: 'Bánh mì thịt', price: 80000, img: 'https://images.unsplash.com/photo-1509722747041-616f39b57569?auto=format&fit=crop&w=300&q=80' },
-  ];
 
   const handleSelect = (mealId: string) => {
     const current = meals['0'];
@@ -36,25 +52,33 @@ export default function Meal() {
       <h2 className="text-2xl font-bold mb-6 text-gray-900 dark:text-white flex items-center gap-2">
         <Coffee className="w-6 h-6 text-blue-600" /> Chọn suất ăn
       </h2>
-      <div className="grid md:grid-cols-3 gap-6 mb-8">
-        {options.map((opt) => (
-          <div 
-            key={opt.id}
-            onClick={() => handleSelect(opt.id)}
-            className={`border-2 rounded-xl overflow-hidden cursor-pointer transition-colors ${
-              meals['0'] === opt.id 
-                ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20' 
-                : 'border-gray-200 dark:border-gray-700 hover:border-blue-400'
-            }`}
-          >
-            <img src={opt.img} alt={opt.name} className="w-full h-32 object-cover" />
-            <div className="p-4">
-              <h3 className="font-bold text-gray-900 dark:text-white">{opt.name}</h3>
-              <p className="text-blue-600 font-bold mt-2">+{opt.price.toLocaleString()} ₫</p>
+      
+      {loading ? (
+        <div className="flex justify-center py-8">
+          <span className="text-blue-500 animate-pulse">Đang tải các suất ăn...</span>
+        </div>
+      ) : (
+        <div className="grid md:grid-cols-3 gap-6 mb-8">
+          {options.map((opt) => (
+            <div 
+              key={opt.id}
+              onClick={() => handleSelect(opt.id)}
+              className={`border-2 rounded-xl overflow-hidden cursor-pointer transition-colors ${
+                meals['0'] === opt.id 
+                  ? 'border-blue-600 bg-blue-50 dark:bg-blue-900/20' 
+                  : 'border-gray-200 dark:border-gray-700 hover:border-blue-400'
+              }`}
+            >
+              <img src={opt.img} alt={opt.name} className="w-full h-32 object-cover" />
+              <div className="p-4">
+                <h3 className="font-bold text-gray-900 dark:text-white">{opt.name}</h3>
+                <p className="text-blue-600 font-bold mt-2">+{opt.price.toLocaleString()} ₫</p>
+              </div>
             </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
+
       <div className="flex justify-between">
         <button 
           onClick={() => navigate.push('/booking/baggage')}

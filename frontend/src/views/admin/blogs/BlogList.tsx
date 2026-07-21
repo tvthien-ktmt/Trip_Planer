@@ -1,17 +1,58 @@
-'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2, Eye } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
+import { useRouter } from 'next/navigation';
+import { toast } from 'sonner';
+import { api } from '../../../lib/api';
 
 export default function BlogList() {
   const [searchTerm, setSearchTerm] = useState('');
+  const navigate = useRouter();
 
-  const blogs = [
-    { id: '1', title: '10 Địa Điểm Không Thể Bỏ Qua Khi Đến Kyoto', category: 'Destination', author: 'Travel Expert', views: 1250, status: 'Published', date: '2024-10-15' },
-    { id: '2', title: 'Bí kíp xin Visa Châu Âu tỷ lệ đậu 99%', category: 'Tips', author: 'Visa Team', views: 3400, status: 'Published', date: '2024-09-20' },
-    { id: '3', title: 'Trải nghiệm ẩm thực đường phố Bangkok', category: 'Cuisine', author: 'Foodie', views: 890, status: 'Draft', date: '2024-10-25' },
-    { id: '4', title: 'Review khách sạn 5 sao tại Phú Quốc', category: 'Experience', author: 'Admin', views: 560, status: 'Published', date: '2024-10-10' },
-  ];
+  // R5-FE-005 fix: Fetch real blogs from BE
+  const [blogs, setBlogs] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
+
+  const fetchBlogs = async () => {
+    setIsLoading(true);
+    try {
+      const res = await api.get('/blogs');
+      const data = res.data?.data || res.data || [];
+      setBlogs(data.map((b: any) => ({
+        id: String(b.id),
+        title: b.title || 'N/A',
+        category: b.categoryId ? `Category ${b.categoryId}` : 'N/A',
+        author: b.author?.fullName || 'N/A',
+        views: b.viewCount || 0,
+        status: b.status || 'DRAFT',
+        date: b.publishedAt ? new Date(b.publishedAt).toLocaleDateString('vi-VN') : (b.createdAt ? new Date(b.createdAt).toLocaleDateString('vi-VN') : '')
+      })));
+    } catch (e) {
+      toast.error('Không thể tải danh sách bài viết');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchBlogs(); }, []);
+
+  const handleDelete = (id: string) => {
+    toast.warning('Bạn có chắc chắn muốn xóa bài viết này?', {
+      action: {
+        label: 'Đồng ý',
+        onClick: async () => {
+          try {
+            await api.delete(`/admin/blogs/${id}`);
+            toast.success('Đã xóa bài viết thành công');
+            fetchBlogs();
+          } catch (e) {
+            toast.error('Xóa bài viết thất bại');
+          }
+        }
+      },
+      cancel: { label: 'Hủy', onClick: () => {} }
+    });
+  };
 
   return (
     <div className="space-y-6">
@@ -76,7 +117,7 @@ export default function BlogList() {
                     <Eye className="w-3.5 h-3.5" /> {blog.views}
                   </td>
                   <td className="p-4">
-                    {blog.status === 'Published' ? (
+                    {blog.status === 'PUBLISHED' ? (
                       <span className="px-2.5 py-1 bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-400 rounded-full text-xs font-medium">Đã xuất bản</span>
                     ) : (
                       <span className="px-2.5 py-1 bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300 rounded-full text-xs font-medium">Bản nháp</span>
@@ -84,10 +125,10 @@ export default function BlogList() {
                   </td>
                   <td className="p-4 text-right">
                     <div className="flex items-center justify-end gap-2">
-                      <button className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--color-ocean-600)] transition-colors rounded">
+                      <button onClick={() => navigate.push(`/admin/blogs/edit/${blog.id}`)} className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--color-ocean-600)] transition-colors rounded">
                         <Edit2 className="w-4 h-4" />
                       </button>
-                      <button className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--color-danger)] transition-colors rounded">
+                      <button onClick={() => handleDelete(blog.id)} className="p-1.5 text-[var(--text-secondary)] hover:text-[var(--color-danger)] transition-colors rounded">
                         <Trash2 className="w-4 h-4" />
                       </button>
                     </div>

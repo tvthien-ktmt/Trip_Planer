@@ -50,11 +50,7 @@ export default function Login() {
       }, data.access_token);
       
       // Store token in cookies for Next.js middleware (FE-001/FE-002)
-      const secure = process.env.NODE_ENV === "production" ? "; secure" : "";
-      document.cookie = `token=${data.access_token}; path=/; max-age=${15*60}; samesite=lax${secure}`;
-      if (data.refresh_token) {
-        document.cookie = `refresh_token=${data.refresh_token}; path=/; max-age=${7*24*60*60}; samesite=lax${secure}`;
-      }
+      // token and refresh_token are set as httpOnly by BFF
 
       toast.success('Đăng nhập thành công');
       navigate.push(redirect);

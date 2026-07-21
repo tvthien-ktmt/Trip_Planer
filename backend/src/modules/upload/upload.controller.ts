@@ -1,3 +1,4 @@
+import { ParseBigIntPipe } from '../../common/pipes/parse-bigint.pipe';
 import {
   Controller,
   Post,
@@ -316,9 +317,9 @@ export class UploadController {
 
   @Delete('media/:id')
   @ApiOperation({ summary: 'Delete an uploaded file' })
-  async deleteMedia(@Param('id') id: string, @CurrentUser() user: any) {
+  async deleteMedia(@Param('id', ParseBigIntPipe) id: bigint, @CurrentUser() user: any) {
     const file = await this.prisma.extended.mediaFile.findUnique({
-      where: { id: BigInt(id) },
+      where: { id: id },
     });
     if (!file) throw new BadRequestException('File not found');
     if (file.uploadedBy !== user.id && user.role !== 'ADMIN') {
@@ -336,7 +337,7 @@ export class UploadController {
         });
       }
     }
-    await this.prisma.extended.mediaFile.delete({ where: { id: BigInt(id) } });
+    await this.prisma.extended.mediaFile.delete({ where: { id: id } });
 
     return { success: true, message: 'File deleted' };
   }

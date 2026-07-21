@@ -33,8 +33,6 @@ api.interceptors.response.use(
         const newToken = res.data?.access_token;
         if (newToken) {
           useAuthStore.setState({ token: newToken });
-          const secure = process.env.NODE_ENV === "production" ? "; secure" : "";
-          document.cookie = `token=${newToken}; path=/; max-age=${15*60}; samesite=lax${secure}`;
         }
         return api(originalRequest);
       } catch (refreshError) {
@@ -48,9 +46,10 @@ api.interceptors.response.use(
 
 // Basic Booking API Wrapper
 export const bookingApi = {
-  createDraftBooking: (data: { type: 'FLIGHT' | 'TOUR'; typeId: string; pax: BookingPax; totalAmount: number }) => api.post('/bookings', data),
+  createDraftBooking: (data: { type: 'FLIGHT' | 'TOUR' }) => api.post('/bookings', data),
   selectSeat: (id: string, seatData: { passengerId: string; seatId: string; version: number }) => api.patch(`/bookings/${id}/seats`, seatData),
   addPassengers: (id: string, passengers: { passengers: PassengerInfo[] }) => api.put(`/bookings/${id}/passengers`, passengers),
+  addAddons: (id: string, addons: string[]) => api.post(`/bookings/${id}/addons`, { addons }),
   applyVoucher: (id: string, code: string) => api.post(`/bookings/${id}/apply-voucher`, { code }),
   updateStatus: (id: string, status: string) => api.patch(`/bookings/${id}/status`, { status }),
 };

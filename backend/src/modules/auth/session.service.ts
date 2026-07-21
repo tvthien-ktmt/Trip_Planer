@@ -27,7 +27,7 @@ export class SessionService {
       params.deviceName || this.parseDeviceName(params.userAgent);
 
     // Mock location from IP (in production, use a geo-ip service)
-    const location = await this.mockGeoLocation(params.ipAddress);
+    const location = await this.resolveGeoLocation(params.ipAddress);
 
     // R3-BE-007: Store hashed session token
     await this.prisma.extended.userSession.create({
@@ -209,7 +209,7 @@ export class SessionService {
     return 'Unknown Device';
   }
 
-  private async mockGeoLocation(ipAddress: string): Promise<string> {
+  private async resolveGeoLocation(ipAddress: string): Promise<string> {
     if (
       !ipAddress ||
       ipAddress === 'unknown' ||

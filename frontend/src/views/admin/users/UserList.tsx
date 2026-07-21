@@ -1,49 +1,68 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Search, Edit2, Lock, Unlock, Shield, Trash2, RefreshCcw } from 'lucide-react';
 import { Button } from '../../../components/ui/Button';
 import { toast } from 'sonner';
+import { api } from '../../../lib/api';
 
 export default function UserList() {
   const [searchTerm, setSearchTerm] = useState('');
 
-  const [users, setUsers] = useState([
-    { id: '1', name: 'Nguyễn Văn A', email: 'nva@gmail.com', role: 'User', status: 'Active', joinDate: '20/10/2023', isDeleted: false },
-    { id: '2', name: 'Trần Thị B', email: 'ttb@gmail.com', role: 'User', status: 'Locked', joinDate: '15/11/2023', isDeleted: false },
-    { id: '3', name: 'Lê Hoàng C', email: 'lhc@gmail.com', role: 'Admin', status: 'Active', joinDate: '01/12/2023', isDeleted: false },
-    { id: '4', name: 'Phạm D', email: 'pd@gmail.com', role: 'User', status: 'Active', joinDate: '10/12/2023', isDeleted: true }, // Soft deleted
-    { id: '999', name: 'Admin T', email: 'admin@tripplanner.com', role: 'Admin', status: 'Active', joinDate: '01/01/2023', isDeleted: false },
-  ]);
+  // R5-FE-005 fix: Fetch real users from BE instead of hardcoded array
+  const [users, setUsers] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleToggleLock = (id: string, currentStatus: string) => {
-    toast.warning(`Bạn có chắc chắn muốn ${currentStatus === 'Active' ? 'khóa' : 'mở khóa'} tài khoản này?`, {
-      action: {
-        label: 'Đồng ý',
-        onClick: () => {
-          setUsers(prev => prev.map(u => u.id === id ? { ...u, status: currentStatus === 'Active' ? 'Locked' : 'Active' } : u));
-          toast.success(`Đã ${currentStatus === 'Active' ? 'khóa' : 'mở khóa'} tài khoản thành công`);
-        }
-      },
-      cancel: { label: 'Hủy', onClick: () => {} }
-    });
+  const fetchUsers = async () => {
+    setIsLoading(true);
+    try {
+      const res = await api.get('/admin/users');
+      const data = res.data?.data || res.data || [];
+      setUsers(data.map((u: any) => ({
+        id: String(u.id),
+        name: u.fullName || u.name || '',
+        email: u.email || '',
+        role: u.role || 'USER',
+        status: u.status || 'ACTIVE',
+        joinDate: u.createdAt ? new Date(u.createdAt).toLocaleDateString('vi-VN') : '',
+        isDeleted: !!u.deletedAt,
+      })));
+    } catch (e) {
+      toast.error('Không thể tải danh sách người dùng');
+    } finally {
+      setIsLoading(false);
+    }
   };
 
-  const handleSoftDelete = (id: string) => {
-    toast.warning('Chuyển tài khoản này vào thùng rác (Soft Delete)?', {
-      action: {
-        label: 'Đồng ý',
-        onClick: () => {
-          setUsers(prev => prev.map(u => u.id === id ? { ...u, isDeleted: true } : u));
-          toast.success('Đã xóa mềm tài khoản');
-        }
-      },
-      cancel: { label: 'Hủy', onClick: () => {} }
-    });
+  useEffect(() => { fetchUsers(); }, []);
+
+  const handleToggleLock = async (id: string, currentStatus: string) => {
+    try {
+      await api.patch(`/admin/users/${id}/lock`);
+      toast.success(`Đã ${currentStatus === 'ACTIVE' ? 'khóa' : 'mở khóa'} tài khoản thành công`);
+      fetchUsers();
+    } catch (e) {
+      toast.error('Thao tác thất bại');
+    }
   };
 
-  const handleRestore = (id: string) => {
-    setUsers(users.map(u => u.id === id ? { ...u, isDeleted: false } : u));
-    toast.success('Đã khôi phục tài khoản');
+  const handleSoftDelete = async (id: string) => {
+    try {
+      await api.delete(`/admin/users/${id}`);
+      toast.success('Đã xóa mềm tài khoản');
+      fetchUsers();
+    } catch (e) {
+      toast.error('Thao tác thất bại');
+    }
+  };
+
+  const handleRestore = async (id: string) => {
+    try {
+      await api.patch(`/admin/users/${id}/restore`);
+      toast.success('Đã khôi phục tài khoản');
+      fetchUsers();
+    } catch (e) {
+      toast.error('Thao tác thất bại');
+    }
   };
 
   return (

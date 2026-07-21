@@ -246,7 +246,7 @@ export class PaymentService {
       const sepayUrl = this.configService.get('SEPAY_API_URL') || 'https://qr.sepay.vn/img';
       const account = this.configService.get('SEPAY_ACCOUNT_NUMBER');
       const bank = this.configService.get('SEPAY_BANK_CODE');
-      const template = this.configService.get('SEPAY_TEMPLATE') || 'compact2';
+      const template = this.configService.get('SEPAY_TEMPLATE') || 'compact';
       const amountNum = booking.totalAmount.toNumber();
 
       const paymentUrl = `https://qr.sepay.vn/img?acc=${account}&bank=${bank}&amount=${amountNum}&des=${transferContent}&template=${template}`;
@@ -336,18 +336,34 @@ export class PaymentService {
 
       if (payment.status === 'PENDING') {
         if (Number(amount) === expectedAmount) {
-          // Success
-          await tx.payment.update({
-            where: { id: payment.id },
+          // R5-BE-005 fix: Use updateMany for idempotency (OCC)
+          const updateResult = await tx.payment.updateMany({
+            where: { id: payment.id, status: 'PENDING' },
             data: { status: 'SUCCESS' },
           });
+          if (updateResult.count === 0) return; // Already processed by concurrent request
           await this.bookingService.updateBookingStatusWithTx(tx, payment.bookingId, 'CONFIRMED', null);
         } else {
-          // Invalid amount
-          await tx.payment.update({
-            where: { id: payment.id },
+          // Invalid amount — FAILED path with seat release (R5-DB-009 fix)
+          const result = await tx.payment.updateMany({
+            where: { id: payment.id, status: 'PENDING' },
             data: { status: 'FAILED' },
           });
+          if (result.count === 0) return;
+          // Cancel booking and release seats (consistent with VNPay path)
+          if (this.bookingService.canTransition(payment.booking.status, 'CANCELLED')) {
+            await this.bookingService.updateBookingStatusWithTx(tx, payment.bookingId, 'CANCELLED', null);
+            const passengers = await tx.bookingPassenger.findMany({
+              where: { bookingId: payment.bookingId }, select: { seatId: true },
+            });
+            const seatIds = passengers.map((p: any) => p.seatId).filter(Boolean) as bigint[];
+            if (seatIds.length) {
+              await tx.flightSeat.updateMany({
+                where: { id: { in: seatIds }, status: 'LOCKED' },
+                data: { status: 'AVAILABLE', version: { increment: 1 } },
+              });
+            }
+          }
         }
       }
     });

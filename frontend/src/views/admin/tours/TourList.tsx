@@ -1,22 +1,50 @@
+import { useState, useEffect } from 'react';
 import { Plus, Search, Edit2, Trash2 } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { toast } from 'sonner';
+import { api } from '../../../lib/api';
 
 export default function TourList() {
   const navigate = useRouter();
+  const [searchTerm, setSearchTerm] = useState('');
 
-  const tours = [
-    { id: 'T001', title: 'Tour Khám phá Vịnh Hạ Long', duration: '3 ngày 2 đêm', price: 2500000, status: 'Active' },
-    { id: 'T002', title: 'Nghỉ dưỡng Vinpearl Phú Quốc', duration: '4 ngày 3 đêm', price: 5200000, status: 'Active' },
-    { id: 'T003', title: 'Tour Đà Lạt Ngàn Hoa', duration: '3 ngày 2 đêm', price: 1800000, status: 'Draft' },
-  ];
+  // R5-FE-005 fix: Fetch real tours from BE
+  const [tours, setTours] = useState<any[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
 
-  const handleDelete = () => {
+  const fetchTours = async () => {
+    setIsLoading(true);
+    try {
+      const res = await api.get('/admin/tours');
+      const data = res.data?.data || res.data || [];
+      setTours(data.map((t: any) => ({
+        id: String(t.id),
+        title: t.title || 'N/A',
+        duration: t.durationDays ? `${t.durationDays} ngày ${t.durationNights} đêm` : 'N/A',
+        price: t.basePrice || 0,
+        status: t.status || 'ACTIVE'
+      })));
+    } catch (e) {
+      toast.error('Không thể tải danh sách tour');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchTours(); }, []);
+
+  const handleDelete = (id: string) => {
     toast.warning('Bạn có chắc chắn muốn xóa tour này?', {
       action: {
         label: 'Đồng ý',
-        onClick: () => {
-          toast.success('Đã xóa tour thành công');
+        onClick: async () => {
+          try {
+            await api.delete(`/admin/tours/${id}`);
+            toast.success('Đã xóa tour thành công');
+            fetchTours();
+          } catch (e) {
+            toast.error('Xóa tour thất bại');
+          }
         }
       },
       cancel: { label: 'Hủy', onClick: () => {} }
@@ -82,7 +110,7 @@ export default function TourList() {
                     <button onClick={() => navigate.push(`/admin/tours/edit/${t.id}`)} className="p-2 text-gray-500 hover:text-blue-600 hover:bg-blue-50 dark:hover:bg-blue-900/30 rounded-lg transition-colors">
                       <Edit2 className="w-4 h-4" />
                     </button>
-                    <button onClick={handleDelete} className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors">
+                    <button onClick={() => handleDelete(t.id)} className="p-2 text-gray-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-900/30 rounded-lg transition-colors">
                       <Trash2 className="w-4 h-4" />
                     </button>
                   </td>

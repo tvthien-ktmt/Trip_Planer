@@ -35,11 +35,7 @@ export default function AdminLogin() {
         return;
       }
       login({ id: data.user.id, name: data.user.fullName, email: data.user.email, role: data.user.role }, data.access_token);
-      const secure = process.env.NODE_ENV === "production" ? "; secure" : "";
-      document.cookie = `token=${data.access_token}; path=/; max-age=${15*60}; samesite=lax${secure}`;
-      if (data.refresh_token) {
-        document.cookie = `refresh_token=${data.refresh_token}; path=/; max-age=${7*24*60*60}; samesite=lax${secure}`;
-      }
+      // token and refresh_token are set as httpOnly by BFF
       toast.success('Đăng nhập thành công');
       navigate.push('/admin/dashboard');
     } catch (error) {

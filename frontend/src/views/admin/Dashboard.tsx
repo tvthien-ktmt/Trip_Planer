@@ -6,11 +6,16 @@ const iconMap: Record<string, any> = {
   DollarSign, Ticket, Users, Plane
 };
 
+import { useAuthStore } from "../../stores/authStore";
+
 export default function Dashboard() {
   const [data, setData] = useState<{ stats: { icon: string; title: string; value: string; isUp: boolean; trend: string; iconBg: string; iconColor: string; }[]; revenueChart: number[]; recentBookings: { code: string; desc: string; status: string; }[]; } | null>(null);
 
   useEffect(() => {
-    fetch('/api/admin/dashboard')
+    const token = useAuthStore.getState().token;
+    fetch('/api/admin/dashboard', {
+      headers: { Authorization: `Bearer ${token}` }
+    })
       .then(res => res.json())
       .then(setData)
       .catch(console.error);

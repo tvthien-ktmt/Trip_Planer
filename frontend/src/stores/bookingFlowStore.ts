@@ -49,27 +49,46 @@ export const useBookingFlowStore = create<BookingFlowState>()(
         set({ isLoading: true, error: null });
         try {
           const state = get();
-          const { bookingApi } = await import('../lib/api');
+          const { bookingApi, paymentApi } = await import('../lib/api');
           
           // 1. Create Draft Booking
           const draftRes = await bookingApi.createDraftBooking({
             type: 'FLIGHT',
-            typeId: state.selectedOutboundFlightId!,
-            pax: { adults: state.passengerInfo.length, children: 0, infants: 0 },
-            totalAmount,
           });
           const bookingId = draftRes.data.id;
 
-          // 2. Add Passengers
-          await bookingApi.addPassengers(bookingId, {
+          // 2. Add Passengers — returns created passengers with real IDs
+          const passRes = await bookingApi.addPassengers(bookingId, {
             passengers: state.passengerInfo,
           });
+          const createdPassengers = passRes.data.passengers || [];
 
-          // 3. Initiate Payment
-          const { paymentApi } = await import('../lib/api');
+          // 3. Select Seats for each passenger (V5-BE-002 fix — was completely missing)
+          if (Object.keys(state.selectedSeats).length > 0 && createdPassengers.length > 0) {
+            for (let i = 0; i < createdPassengers.length; i++) {
+              const passenger = createdPassengers[i];
+              // Map by index: FE passengerInfo[i] → BE createdPassengers[i]
+              const frontendPassengerId = state.passengerInfo[i]?.id;
+              const seatId = state.selectedSeats[String(frontendPassengerId)] || state.selectedSeats[String(i)];
+              if (seatId) {
+                await bookingApi.selectSeat(bookingId, {
+                  passengerId: String(passenger.id),
+                  seatId: String(seatId),
+                  version: 0,
+                });
+              }
+            }
+          }
+
+          // 3.5. Add Addons
+          if (state.addons && state.addons.length > 0) {
+            await bookingApi.addAddons(bookingId, state.addons);
+          }
+
+          // 4. Initiate Payment
           if (paymentMethod === 'atm' || paymentMethod === 'sepay') {
             const paymentRes = await paymentApi.initiateSepay(bookingId);
-            set({ bookingCode: bookingId, isLoading: false, currentStep: 4 });
+            set({ bookingCode: bookingId, isLoading: false });
             return { 
               success: true, 
               bookingId, 
@@ -79,7 +98,7 @@ export const useBookingFlowStore = create<BookingFlowState>()(
             };
           } else {
             const paymentRes = await paymentApi.initiatePayment(bookingId);
-            set({ bookingCode: bookingId, isLoading: false, currentStep: 4 });
+            set({ bookingCode: bookingId, isLoading: false });
             return { success: true, bookingId, paymentUrl: paymentRes.data?.paymentUrl };
           }
         } catch (error: any) {
