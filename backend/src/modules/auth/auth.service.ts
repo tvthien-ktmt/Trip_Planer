@@ -460,6 +460,30 @@ export class AuthService {
     return { message: 'Account unlocked successfully' };
   }
 
+  async changePassword(userId: bigint, currentPassword: string, newPassword: string) {
+    const user = await this.prisma.extended.user.findUnique({ where: { id: userId } });
+    if (!user) {
+      throw new BadRequestException('User not found');
+    }
+
+    const isPasswordValid = await bcrypt.compare(currentPassword, user.passwordHash);
+    if (!isPasswordValid) {
+      throw new BadRequestException('Mật khẩu hiện tại không đúng');
+    }
+
+    const hashedPassword = await bcrypt.hash(newPassword, 10);
+    await this.prisma.extended.user.update({
+      where: { id: userId },
+      data: { passwordHash: hashedPassword },
+    });
+
+    await this.prisma.extended.refreshToken.deleteMany({
+      where: { userId },
+    });
+
+    return { message: 'Đổi mật khẩu thành công' };
+  }
+
   async resetPassword(email: string, otp: string, newPassword: string) {
     const user = await this.prisma.extended.user.findUnique({ where: { email } });
     // BE-098: Don't reveal user non-existence with different error message

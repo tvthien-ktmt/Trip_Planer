@@ -11,6 +11,7 @@ import {
   UseGuards,
   UseInterceptors,
   BadRequestException,
+  Put,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { AuthorizationGuard } from '../../common/guards/authorization.guard';
@@ -147,9 +148,21 @@ export class AdminController {
   @Patch('users/:id')
   @ApiOperation({ summary: 'Update user profile/role' })
   async updateUser(@Param('id', ParseBigIntPipe) id: bigint, @Body() dto: any) {
+    // BE-030 fix: Prevent field injection by explicitly selecting fields
+    const { role, status, fullName, phone, dateOfBirth } = dto;
+    
+    // Additional validation could be done here if needed
+    
+    const updateData: any = {};
+    if (role !== undefined) updateData.role = role;
+    if (status !== undefined) updateData.status = status;
+    if (fullName !== undefined) updateData.fullName = fullName;
+    if (phone !== undefined) updateData.phone = phone;
+    if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth;
+
     const user = await this.prisma.extended.user.update({
       where: { id: id },
-      data: dto,
+      data: updateData,
     });
     return { data: user };
   }
@@ -173,10 +186,18 @@ export class AdminController {
 
   @Delete('users/:id')
   async deleteUser(@Param('id', ParseBigIntPipe) id: bigint) {
-    await this.prisma.extended.user.update({
-      where: { id: id },
-      data: { deletedAt: new Date() },
+    // BE-032 fix: Revoke tokens and sessions when deleting user
+    await this.prisma.extended.$transaction(async (tx) => {
+      await tx.user.update({
+        where: { id: id },
+        data: { deletedAt: new Date() },
+      });
+      
+      await tx.refreshToken.deleteMany({
+        where: { userId: id },
+      });
     });
+    
     return { success: true };
   }
 
@@ -372,12 +393,12 @@ export class AdminController {
   @ApiOperation({ summary: 'Get all promotional vouchers' })
   async getPromos(@Query('search') search?: string) {
     const where = search
-      ? { OR: [{ code: { contains: search } }, { description: { contains: search } }] }
+      ? { code: { contains: search } }
       : undefined;
 
     const promos = await this.prisma.extended.voucher.findMany({
       where,
-      orderBy: { createdAt: 'desc' },
+      orderBy: { id: 'desc' },
     });
     return { data: promos };
   }
@@ -388,7 +409,6 @@ export class AdminController {
     const promo = await this.prisma.extended.voucher.create({
       data: {
         code: dto.code,
-        description: dto.description,
         discountType: dto.discountType || 'PERCENT',
         discountValue: dto.discountValue || 0,
         minOrderAmount: dto.minOrderAmount || 0,
@@ -415,22 +435,75 @@ export class AdminController {
     const thirtyDaysAgo = new Date();
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
 
-    const bookings = await this.prisma.extended.booking.groupBy({
-      by: ['createdAt'],
-      _count: { id: true },
-      where: {
-        createdAt: { gte: thirtyDaysAgo },
-        status: { in: ['CONFIRMED', 'COMPLETED'] },
-      },
-      orderBy: { createdAt: 'asc' },
+    const [bookings, passengers] = await Promise.all([
+      this.prisma.extended.booking.groupBy({
+        by: ['createdAt'],
+        _count: { id: true },
+        where: {
+          createdAt: { gte: thirtyDaysAgo },
+          status: { in: ['CONFIRMED', 'COMPLETED'] },
+        },
+        orderBy: { createdAt: 'asc' },
+      }),
+      this.prisma.extended.bookingPassenger.findMany({
+        where: {
+          booking: { status: { in: ['CONFIRMED', 'COMPLETED'] } },
+        },
+        include: { fareClass: true },
+      }),
+    ]);
+
+    const totalPassengers = passengers.length;
+    let economy = 0;
+    let business = 0;
+    let firstClass = 0;
+
+    passengers.forEach(p => {
+      if (p.fareClass?.className === 'ECONOMY') economy++;
+      else if (p.fareClass?.className === 'BUSINESS') business++;
+      else if (p.fareClass?.className === 'PREMIUM_ECONOMY') firstClass++; // Map premium to first class for now
     });
 
+    const seatDistribution = {
+      economy: totalPassengers > 0 ? Math.round((economy / totalPassengers) * 100) : 0,
+      business: totalPassengers > 0 ? Math.round((business / totalPassengers) * 100) : 0,
+      firstClass: totalPassengers > 0 ? Math.round((firstClass / totalPassengers) * 100) : 0,
+    };
+
     return {
+      totalPassengers,
+      seatDistribution,
       data: bookings.map(b => ({
         date: b.createdAt,
         count: b._count.id,
       })),
     };
+  }
+  // R6 Phase 1: Settings CRUD
+  @Get('settings')
+  @ApiOperation({ summary: 'Get all system settings' })
+  async getSettings() {
+    const settings = await this.prisma.extended.systemSetting.findMany();
+    // Convert array to object
+    const result: Record<string, string> = {};
+    for (const s of settings) {
+      result[s.settingKey] = s.settingValue;
+    }
+    return { data: result };
+  }
+
+  @Put('settings')
+  @ApiOperation({ summary: 'Update system settings' })
+  async updateSettings(@Body() dto: Record<string, string>) {
+    const updates = Object.entries(dto).map(async ([key, value]) => {
+      return this.prisma.extended.systemSetting.upsert({
+        where: { settingKey: key },
+        update: { settingValue: value },
+        create: { settingKey: key, settingValue: value },
+      });
+    });
+    await Promise.all(updates);
+    return { success: true };
   }
 }
 

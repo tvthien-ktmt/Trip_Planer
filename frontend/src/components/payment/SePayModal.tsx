@@ -37,24 +37,37 @@ export default function SePayModal({ paymentUrl, paymentId, expiredAt, onClose }
   // Polling logic
   useEffect(() => {
     if (status !== 'PENDING') return;
+    
+    let timerId: NodeJS.Timeout;
+    let currentInterval = 3000;
+    const maxInterval = 10000;
 
     const checkStatus = async () => {
       try {
         const res = await paymentApi.getPaymentStatus(paymentId);
         if (res.data.status === 'SUCCESS') {
           setStatus('SUCCESS');
+          return;
         } else if (res.data.status === 'EXPIRED') {
           setStatus('EXPIRED');
+          return;
         } else if (res.data.status === 'LATE_PAYMENT') {
           setStatus('LATE_PAYMENT');
+          return;
         }
       } catch (error) {
         console.error('Lỗi khi kiểm tra trạng thái thanh toán', error);
       }
+      
+      // Exponential backoff
+      if (status === 'PENDING') {
+        currentInterval = Math.min(currentInterval * 1.5, maxInterval);
+        timerId = setTimeout(checkStatus, currentInterval);
+      }
     };
 
-    const pollingInterval = setInterval(checkStatus, 3000); // 3 seconds
-    return () => clearInterval(pollingInterval);
+    timerId = setTimeout(checkStatus, currentInterval);
+    return () => clearTimeout(timerId);
   }, [paymentId, status]);
 
   const formatTime = (seconds: number) => {

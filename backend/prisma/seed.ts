@@ -251,42 +251,6 @@ async function main() {
     },
   });
 
-  // Create 97 random users
-  const regularUsers: any[] = [demoUser];
-  for (let i = 0; i < 97; i++) {
-    const firstName = randomItem(firstNames);
-    const lastName = randomItem(middleLastNames);
-    const num = String(i).padStart(3, '0');
-    const status = i % 20 === 0 ? 'LOCKED' : 'ACTIVE';
-    const user = await prisma.user.create({
-      data: {
-        email: `user${num}@example.com`,
-        passwordHash: userPasswordHash,
-        fullName: `${firstName} ${lastName}`,
-        role: 'USER',
-        status,
-        lockReason: status === 'LOCKED' ? `AUTO_FAILED_LOGIN:${Date.now()}` : null,
-        emailVerifiedAt: new Date(),
-        phone: `090${randomInt(1000000, 9999999)}`,
-        dateOfBirth: randomDate(new Date('1980-01-01'), new Date('2000-12-31')),
-        createdAt: randomDate(new Date('2024-01-01'), new Date('2026-07-01')),
-      },
-    });
-
-    if (status === 'LOCKED') {
-      await prisma.activityLog.create({
-        data: {
-          userId: user.id,
-          action: 'USER_ACCOUNT_LOCKED',
-          description: 'Tài khoản bị khóa do đăng nhập sai quá 5 lần',
-          ipAddress: '127.0.0.1',
-        }
-      });
-    }
-
-    regularUsers.push(user);
-  }
-  console.log(`✅ Seeded ${regularUsers.length + 2} users`);
 
   // ===== 3. Airports =====
   console.log('✈️ Seeding airports...');
@@ -301,103 +265,22 @@ async function main() {
 
   // ===== 4. Aircraft =====
   console.log('🛩️ Seeding aircraft...');
-  const createdAircraft: any[] = [];
   for (const ac of aircraftModels) {
     for (let i = 0; i < 4; i++) {
-      const aircraft = await prisma.aircraft.create({
+      await prisma.aircraft.create({
         data: { ...ac, seatMapConfig: { rows: 30, cols: 6, exitRows: [12, 24] } },
       });
-      createdAircraft.push(aircraft);
     }
   }
-  console.log(`✅ Seeded ${createdAircraft.length} aircraft`);
+  console.log(`✅ Seeded aircraft`);
 
   // ===== 5. Flights + FareClasses + Seats =====
   console.log('🛫 Seeding flights...');
-  const createdFlights: any[] = [];
-
-  for (let i = 0; i < 200; i++) {
-    const aircraft = randomItem(createdAircraft);
-    const airline = randomItem(airlines);
-
-    // Domestic vs International
-    let depAirport: any, arrAirport: any;
-    if (i < 140) {
-      // 70% domestic
-      depAirport = randomItem(vnAirports);
-      arrAirport = randomItem(vnAirports.filter((a) => a.id !== depAirport.id));
-    } else {
-      // 30% international
-      depAirport = randomItem(vnAirports);
-      arrAirport = randomItem(allAirports.filter((a) => a.country !== 'Vietnam'));
-    }
-
-    const depTime = randomDate(new Date('2026-07-01'), new Date('2026-12-31'));
-    const flightDuration = i < 140 ? randomInt(60, 120) : randomInt(180, 720); // minutes
-    const arrTime = new Date(depTime.getTime() + flightDuration * 60 * 1000);
-
-    const flight = await prisma.flight.create({
-      data: {
-        flightNumber: `${airline.substring(0, 2).toUpperCase()}${randomInt(100, 999)}`,
-        airlineName: airline,
-        aircraftId: aircraft.id,
-        departureAirportId: depAirport.id,
-        arrivalAirportId: arrAirport.id,
-        departureTime: depTime,
-        arrivalTime: arrTime,
-        status: i % 30 === 0 ? 'DELAYED' : 'SCHEDULED',
-      },
-    });
-
-    // Create fare classes
-    const economyClass = await prisma.flightFareClass.create({
-      data: {
-        flightId: flight.id,
-        className: 'ECONOMY',
-        basePrice: randomInt(500000, 2000000),
-        availableSeats: Math.floor(aircraft.totalSeats * 0.7),
-        baggageAllowanceKg: 20,
-      },
-    });
-    const businessClass = await prisma.flightFareClass.create({
-      data: {
-        flightId: flight.id,
-        className: 'BUSINESS',
-        basePrice: randomInt(3000000, 8000000),
-        availableSeats: Math.floor(aircraft.totalSeats * 0.1),
-        baggageAllowanceKg: 30,
-      },
-    });
-
-    // Create seats (subset — not all 180+ for performance)
-    const seats: any[] = [];
-    for (let row = 1; row <= 15; row++) {
-      for (const col of ['A', 'B', 'C', 'D', 'E', 'F']) {
-        const isEconomy = row > 3;
-        const fareClass = isEconomy ? economyClass : businessClass;
-        const status = Math.random() < 0.3 ? 'BOOKED' : 'AVAILABLE';
-        const seat = await prisma.flightSeat.create({
-          data: {
-            flightId: flight.id,
-            seatCode: `${row}${col}`,
-            fareClassId: fareClass.id,
-            status,
-            extraFee: col === 'A' || col === 'F' ? 100000 : 0, // Window seats cost extra
-          },
-        });
-        seats.push(seat);
-      }
-    }
-
-    createdFlights.push({ flight, economyClass, businessClass, seats });
-  }
-  console.log(`✅ Seeded ${createdFlights.length} flights with fare classes and seats`);
 
   // ===== 6. Destinations + Tours =====
   console.log('🗺️ Seeding destinations and tours...');
-  const createdDestinations: any[] = [];
   for (const dest of tourDestinations) {
-    const d = await prisma.destination.create({
+    await prisma.destination.create({
       data: {
         ...dest,
         tags: ['popular', 'recommended'],
@@ -405,58 +288,8 @@ async function main() {
         coverImageUrl: `https://images.unsplash.com/photo-1527631746610-bca00a040d60?w=800`,
       },
     });
-    createdDestinations.push(d);
   }
 
-  const tourTitles = [
-    'Tour Khám phá', 'Tour Trải nghiệm', 'Tour Du lịch sinh thái', 'Tour Văn hóa',
-    'Tour Nghỉ dưỡng cao cấp', 'Tour Phiêu lưu', 'Tour Gia đình', 'Tour Tuần trăng mật',
-  ];
-
-  const createdTours: any[] = [];
-  for (let i = 0; i < 100; i++) {
-    const dest = randomItem(createdDestinations);
-    const title = `${randomItem(tourTitles)} ${dest.name} ${randomInt(3, 10)} ngày`;
-    const durationDays = randomInt(3, 10);
-    const basePrice = randomInt(3000000, 25000000);
-
-    const tour = await prisma.tour.create({
-      data: {
-        title,
-        destinationId: dest.id,
-        description: `Khám phá vẻ đẹp tuyệt vời của ${dest.name} với lịch trình được thiết kế chu đáo.`,
-        durationDays,
-        basePrice,
-        discountPercent: randomItem([0, 0, 0, 5, 10, 15, 20]),
-        ratingAvg: randomInt(38, 50) / 10,
-        reviewCount: randomInt(0, 200),
-      },
-    });
-
-    // Add itineraries
-    for (let day = 1; day <= Math.min(durationDays, 3); day++) {
-      await prisma.tourItinerary.create({
-        data: {
-          tourId: tour.id,
-          dayNumber: day,
-          title: `Ngày ${day}: Tham quan ${dest.name}`,
-          description: `Tham quan các điểm nổi bật của ${dest.name}, thưởng thức ẩm thực địa phương.`,
-        },
-      });
-    }
-
-    // Add tour image
-    await prisma.tourImage.create({
-      data: {
-        tourId: tour.id,
-        imageUrl: `https://images.unsplash.com/photo-${randomInt(1500000000, 1600000000)}?w=800`,
-        displayOrder: 0,
-      },
-    });
-
-    createdTours.push(tour);
-  }
-  console.log(`✅ Seeded ${createdTours.length} tours`);
 
   // ===== 7. Vouchers =====
   console.log('🎟️ Seeding vouchers...');
@@ -477,23 +310,6 @@ async function main() {
     });
   }
 
-  // Add 42 more random vouchers
-  for (let i = 0; i < 42; i++) {
-    const code = `DEAL${String(i).padStart(3, '0')}`;
-    await prisma.voucher.create({
-      data: {
-        code,
-        discountType: Math.random() > 0.5 ? 'PERCENT' : 'FIXED',
-        discountValue: Math.random() > 0.5 ? randomInt(5, 30) : randomInt(50000, 500000),
-        minOrderAmount: randomInt(500000, 2000000),
-        validFrom: randomDate(new Date('2025-01-01'), new Date('2026-06-01')),
-        validTo: randomDate(new Date('2026-06-01'), new Date('2027-01-01')),
-        usageLimit: randomInt(10, 200),
-        usedCount: randomInt(0, 10),
-      },
-    });
-  }
-  console.log('✅ Seeded 50 vouchers');
 
   // ===== 8. Membership Tiers =====
   console.log('🏆 Seeding membership tiers...');
@@ -512,112 +328,9 @@ async function main() {
 
   // ===== 9. Bookings + Payments =====
   console.log('📋 Seeding bookings and payments...');
-  const bookingStatuses = ['CONFIRMED', 'CONFIRMED', 'CONFIRMED', 'COMPLETED', 'COMPLETED', 'CANCELLED', 'PENDING_PAYMENT'];
-  let bookingCount = 0;
-
-  for (let i = 0; i < 500; i++) {
-    const user = randomItem(regularUsers);
-    const status = randomItem(bookingStatuses);
-    const type: 'FLIGHT' | 'TOUR' = Math.random() > 0.4 ? 'FLIGHT' : 'TOUR';
-
-    const totalAmount = randomInt(500000, 15000000);
-    const bookingDate = randomDate(new Date('2025-01-01'), new Date('2026-07-14'));
-
-    let bookingCode = '';
-    let isUnique = false;
-    while (!isUnique) {
-      bookingCode = generateBookingCode();
-      const existing = await prisma.booking.findUnique({ where: { bookingCode } });
-      if (!existing) isUnique = true;
-    }
-
-    const booking = await prisma.booking.create({
-      data: {
-        bookingCode,
-        userId: user.id,
-        type,
-        status: status as any,
-        totalAmount,
-        currency: 'VND',
-        createdAt: bookingDate,
-      },
-    });
-
-    // Add booking status history
-    await prisma.bookingStatusHistory.create({
-      data: {
-        bookingId: booking.id,
-        fromStatus: 'DRAFT',
-        toStatus: status as any,
-        changedBy: user.id,
-        changedAt: bookingDate,
-      },
-    });
-
-    // Add payment for confirmed/completed
-    if (['CONFIRMED', 'COMPLETED'].includes(status)) {
-      const methods: any[] = ['VNPAY', 'VNPAY', 'MOMO', 'BANK_TRANSFER', 'CREDIT_CARD'];
-      await prisma.payment.create({
-        data: {
-          bookingId: booking.id,
-          method: randomItem(methods),
-          amount: totalAmount,
-          status: 'SUCCESS',
-          transactionRef: `TXN${Date.now()}${randomInt(1000, 9999)}`,
-          idempotencyKey: `PAY_${booking.id}_${Date.now()}${i}`,
-        },
-      });
-
-      // Award membership points
-      const points = Math.floor(totalAmount / 10000);
-      await prisma.userPoints.upsert({
-        where: { userId: user.id },
-        create: {
-          userId: user.id,
-          pointsBalance: points,
-          tierId: createdTiers[0].id,
-        },
-        update: {
-          pointsBalance: { increment: points },
-        },
-      });
-    }
-
-    bookingCount++;
-    if (bookingCount % 50 === 0) console.log(`   Progress: ${bookingCount}/500 bookings`);
-  }
-  console.log(`✅ Seeded ${bookingCount} bookings with payments`);
 
   // ===== 10. Reviews =====
   console.log('⭐ Seeding reviews...');
-  for (let i = 0; i < 300; i++) {
-    const user = randomItem(regularUsers);
-    const isTourReview = Math.random() > 0.4;
-    const reviewableId = isTourReview
-      ? randomItem(createdTours).id
-      : randomItem(createdFlights).flight.id;
-
-    await prisma.review.create({
-      data: {
-        userId: user.id,
-        reviewableType: isTourReview ? 'TOUR' : 'FLIGHT',
-        reviewableId,
-        rating: randomInt(3, 5),
-        comment: randomItem([
-          'Trải nghiệm tuyệt vời! Rất hài lòng với dịch vụ.',
-          'Chuyến đi rất thú vị, sẽ quay lại lần sau.',
-          'Dịch vụ tốt, giá hợp lý. Recommended!',
-          'Nhân viên nhiệt tình, chu đáo. 5 sao!',
-          'Tour rất đáng giá tiền. Lịch trình hợp lý.',
-          'Khá hài lòng, chỉ có một vài điểm nhỏ cần cải thiện.',
-          'Sẽ giới thiệu cho bạn bè và người thân.',
-        ]),
-        helpfulCount: randomInt(0, 50),
-        status: 'PUBLISHED',
-      },
-    });
-  }
-  console.log('✅ Seeded 300 reviews');
 
   // ===== 11. Blog Content =====
   console.log('📝 Seeding blog content...');
@@ -644,76 +357,48 @@ async function main() {
     });
   }
 
-  const blogPosts = [
-    { title: 'Top 10 điểm du lịch đẹp nhất Việt Nam 2026', slug: 'top-10-diem-du-lich-viet-nam-2026' },
-    { title: 'Kinh nghiệm du lịch Hà Nội 3 ngày 2 đêm', slug: 'kinh-nghiem-du-lich-ha-noi-3-ngay' },
-    { title: 'Khám phá Hội An cổ kính và thơ mộng', slug: 'kham-pha-hoi-an' },
-    { title: 'Du lịch Phú Quốc: Thiên đường biển đảo', slug: 'du-lich-phu-quoc-thien-duong-bien-dao' },
-    { title: 'Hướng dẫn đặt vé máy bay giá rẻ', slug: 'huong-dan-dat-ve-may-bay-gia-re' },
-    { title: 'Những điều cần biết khi du lịch Nhật Bản', slug: 'nhung-dieu-can-biet-du-lich-nhat-ban' },
-    { title: 'Bangkok 5 ngày: Khám phá thành phố không ngủ', slug: 'bangkok-5-ngay-kham-pha' },
-    { title: 'Ẩm thực đường phố Sài Gòn không thể bỏ qua', slug: 'am-thuc-duong-pho-sai-gon' },
-  ];
 
-  for (const post of blogPosts) {
-    await prisma.blogPost.create({
-      data: {
-        title: post.title,
-        slug: post.slug,
-        content: `<h2>${post.title}</h2><p>Nội dung chi tiết về ${post.title}. Đây là một bài viết được biên soạn kỹ lưỡng về chủ đề du lịch hấp dẫn này...</p><p>Hãy cùng chúng tôi khám phá những điều thú vị đang chờ đón bạn!</p>`,
-        categoryId: blogCategory.id,
-        authorId: adminUser.id,
-        status: 'PUBLISHED',
-        publishedAt: randomDate(new Date('2025-01-01'), new Date('2026-07-01')),
-        metaTitle: `${post.title} | Trip Planner`,
-        metaDescription: `Khám phá ${post.title}. Thông tin hữu ích và kinh nghiệm thực tế từ Trip Planner.`,
-        viewCount: randomInt(100, 5000),
-      },
-    });
-  }
-  console.log('✅ Seeded blog content (categories, tags, 8 posts)');
 
-  // ===== 12. Activity Logs for demo user =====
-  console.log('📊 Seeding activity logs...');
-  const activityActions = [
-    { action: 'USER_LOGIN', description: 'Đăng nhập thành công' },
-    { action: 'BOOKING_CREATED', description: 'Tạo booking chuyến bay SGN→HAN' },
-    { action: 'PAYMENT_SUCCESS', description: 'Thanh toán thành công - 1,500,000 VND' },
-    { action: 'BOOKING_CONFIRMED', description: 'Booking được xác nhận' },
-    { action: 'WISHLIST_ADDED', description: 'Thêm Tour Đà Nẵng vào yêu thích' },
-    { action: 'REVIEW_SUBMITTED', description: 'Đánh giá chuyến bay 5 sao' },
-    { action: 'PROFILE_UPDATED', description: 'Cập nhật thông tin cá nhân' },
-  ];
+  // ===== System Settings =====
+  console.log('⚙️ Seeding system settings...');
+  await prisma.systemSetting.upsert({
+    where: { settingKey: 'ANCILLARY_OPTIONS' },
+    update: {},
+    create: {
+      settingKey: 'ANCILLARY_OPTIONS',
+      settingValue: JSON.stringify({
+        baggage: [
+          { weight: 15, price: 150000 },
+          { weight: 20, price: 200000 },
+          { weight: 25, price: 250000 },
+          { weight: 30, price: 350000 }
+        ],
+        meals: [
+          { id: 'm1', name: 'Mì Ý Sốt Bò Băm', price: 80000 },
+          { id: 'm2', name: 'Cơm Gà Hải Nam', price: 90000 },
+          { id: 'm3', name: 'Sandwich Kẹp Thịt', price: 50000 },
+          { id: 'm4', name: 'Salad Rau Củ Trộn', price: 60000 }
+        ],
+        addons: [
+          { id: 'wifi', name: 'Wi-Fi Trên Máy Bay', price: 100000 },
+          { id: 'insurance', name: 'Bảo Hiểm Trễ Chuyến', price: 150000 },
+          { id: 'lounge', name: 'Quyền Truy Cập Phòng Chờ', price: 300000 },
+          { id: 'fast_track', name: 'Thủ Tục Nhanh', price: 250000 }
+        ]
+      }),
+      isEncrypted: false,
+    },
+  });
+  console.log('✅ Seeded system settings');
 
-  for (const act of activityActions) {
-    await prisma.activityLog.create({
-      data: {
-        userId: demoUser.id,
-        action: act.action,
-        description: act.description,
-        metadata: { source: 'seed' },
-        ipAddress: '192.168.1.1',
-        createdAt: randomDate(new Date('2026-06-01'), new Date('2026-07-14')),
-      },
-    });
-  }
-  console.log('✅ Seeded activity logs for demo user');
 
   console.log('\n🎉 Database seeding completed successfully!');
   console.log('='.repeat(50));
   console.log('📋 Test Accounts Created');
   console.log('='.repeat(50));
   console.log('📊 Seeded Data Summary:');
-  console.log(`  Permissions: ${permissions.length}`);
-  console.log(`  Users: ${regularUsers.length + 2}`);
+  console.log(`  Users: 2`);
   console.log(`  Airports: ${airports.length}`);
-  console.log(`  Aircraft: ${createdAircraft.length}`);
-  console.log(`  Flights: ${createdFlights.length}`);
-  console.log(`  Tours: ${createdTours.length}`);
-  console.log(`  Vouchers: 50`);
-  console.log(`  Bookings: ${bookingCount}`);
-  console.log(`  Reviews: 300`);
-  console.log(`  Blog Posts: 8`);
   console.log('='.repeat(50));
 }
 

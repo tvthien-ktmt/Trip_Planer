@@ -1,15 +1,41 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Save, Shield, Settings as SettingsIcon, Mail, CreditCard, Database } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
 import { toast } from 'sonner';
+import { api } from '../../lib/api';
 
 export default function AdminSettings() {
   const [activeTab, setActiveTab] = useState('general');
+  const [settings, setSettings] = useState<Record<string, string>>({});
+  const [loading, setLoading] = useState(true);
 
-  const handleSave = (e: React.FormEvent) => {
+  useEffect(() => {
+    const fetchSettings = async () => {
+      try {
+        const res = await api.get('/admin/settings');
+        setSettings(res.data.data || {});
+      } catch (err) {
+        toast.error('Lỗi khi tải cấu hình');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSettings();
+  }, []);
+
+  const handleSave = async (e: React.FormEvent) => {
     e.preventDefault();
-    toast.success('Đã lưu cấu hình hệ thống');
+    try {
+      await api.put('/admin/settings', settings);
+      toast.success('Đã lưu cấu hình hệ thống');
+    } catch (err) {
+      toast.error('Lỗi khi lưu cấu hình');
+    }
+  };
+
+  const updateSetting = (key: string, value: string) => {
+    setSettings(prev => ({ ...prev, [key]: value }));
   };
 
   const tabs = [
@@ -58,18 +84,18 @@ export default function AdminSettings() {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Tên Website / Tên công ty</label>
-                    <input type="text" defaultValue="Trip Planner VN" className="w-full p-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] focus:border-[var(--color-ocean-600)] outline-none" />
+                    <input type="text" value={settings.COMPANY_NAME || 'Trip Planner VN'} onChange={e => updateSetting('COMPANY_NAME', e.target.value)} className="w-full p-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] focus:border-[var(--color-ocean-600)] outline-none" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Đa ngôn ngữ (Mặc định)</label>
-                    <select className="w-full p-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] focus:border-[var(--color-ocean-600)] outline-none">
+                    <select value={settings.DEFAULT_LANG || 'vi'} onChange={e => updateSetting('DEFAULT_LANG', e.target.value)} className="w-full p-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] focus:border-[var(--color-ocean-600)] outline-none">
                       <option value="vi">Tiếng Việt</option>
                       <option value="en">English</option>
                     </select>
                   </div>
                   <div className="md:col-span-2">
                     <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Mô tả SEO trang chủ (Meta Description)</label>
-                    <textarea rows={3} defaultValue="Nền tảng đặt vé máy bay và tour du lịch hàng đầu Việt Nam" className="w-full p-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] focus:border-[var(--color-ocean-600)] outline-none resize-none" />
+                    <textarea rows={3} value={settings.SEO_DESC || 'Nền tảng đặt vé máy bay và tour du lịch hàng đầu Việt Nam'} onChange={e => updateSetting('SEO_DESC', e.target.value)} className="w-full p-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] focus:border-[var(--color-ocean-600)] outline-none resize-none" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Logo hệ thống</label>
@@ -94,19 +120,19 @@ export default function AdminSettings() {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">SMTP Host</label>
-                    <input type="text" defaultValue="smtp.gmail.com" className="w-full p-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] outline-none" />
+                    <input type="text" value={settings.SMTP_HOST || 'smtp.gmail.com'} onChange={e => updateSetting('SMTP_HOST', e.target.value)} className="w-full p-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] outline-none" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">SMTP Port</label>
-                    <input type="number" defaultValue="587" className="w-full p-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] outline-none" />
+                    <input type="number" value={settings.SMTP_PORT || '587'} onChange={e => updateSetting('SMTP_PORT', e.target.value)} className="w-full p-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] outline-none" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Email gửi đi (Sender)</label>
-                    <input type="email" defaultValue="noreply@tripplanner.vn" className="w-full p-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] outline-none" />
+                    <input type="email" value={settings.SMTP_FROM || 'noreply@tripplanner.vn'} onChange={e => updateSetting('SMTP_FROM', e.target.value)} className="w-full p-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] outline-none" />
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Mật khẩu ứng dụng (App Password)</label>
-                    <input type="password" defaultValue="********" className="w-full p-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] outline-none" />
+                    <input type="password" value={settings.SMTP_PASS || ''} onChange={e => updateSetting('SMTP_PASS', e.target.value)} placeholder="********" className="w-full p-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] outline-none" />
                   </div>
                 </div>
                 <Button type="button" variant="outline">Gửi Email Test</Button>
@@ -122,22 +148,22 @@ export default function AdminSettings() {
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-[var(--color-ocean-600)]">VNPay Configuration</h3>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <input type="checkbox" checked={settings.VNPAY_ENABLED === 'true'} onChange={e => updateSetting('VNPAY_ENABLED', e.target.checked ? 'true' : 'false')} className="sr-only peer" />
                       <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-ocean-600)]"></div>
                     </label>
                   </div>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">VNP_TMN_CODE</label>
-                      <input type="text" defaultValue="TRIPVN01" className="w-full p-2 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-lg text-sm text-[var(--text-primary)]" />
+                      <input type="text" value={settings.VNP_TMN_CODE || ''} onChange={e => updateSetting('VNP_TMN_CODE', e.target.value)} className="w-full p-2 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-lg text-sm text-[var(--text-primary)]" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">VNP_HASH_SECRET</label>
-                      <input type="password" defaultValue="*****************" className="w-full p-2 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-lg text-sm text-[var(--text-primary)]" />
+                      <input type="password" value={settings.VNP_HASH_SECRET || ''} onChange={e => updateSetting('VNP_HASH_SECRET', e.target.value)} className="w-full p-2 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-lg text-sm text-[var(--text-primary)]" />
                     </div>
                     <div className="md:col-span-2">
                       <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Môi trường (Sandbox/Production)</label>
-                      <select className="w-full p-2 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-lg text-sm text-[var(--text-primary)]">
+                      <select value={settings.VNP_ENV || 'sandbox'} onChange={e => updateSetting('VNP_ENV', e.target.value)} className="w-full p-2 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-lg text-sm text-[var(--text-primary)]">
                         <option value="sandbox">Sandbox (Thử nghiệm)</option>
                         <option value="production">Production (Thực tế)</option>
                       </select>
@@ -149,18 +175,18 @@ export default function AdminSettings() {
                   <div className="flex items-center justify-between">
                     <h3 className="font-semibold text-[var(--color-ocean-600)]">SePay (Chuyển khoản tự động)</h3>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" defaultChecked />
+                      <input type="checkbox" checked={settings.SEPAY_ENABLED === 'true'} onChange={e => updateSetting('SEPAY_ENABLED', e.target.checked ? 'true' : 'false')} className="sr-only peer" />
                       <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none rounded-full peer dark:bg-gray-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-[var(--color-ocean-600)]"></div>
                     </label>
                   </div>
                   <div className="grid md:grid-cols-2 gap-4">
                     <div>
                       <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">API Token</label>
-                      <input type="password" defaultValue="********" className="w-full p-2 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-lg text-sm text-[var(--text-primary)]" />
+                      <input type="password" value={settings.SEPAY_TOKEN || ''} onChange={e => updateSetting('SEPAY_TOKEN', e.target.value)} className="w-full p-2 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-lg text-sm text-[var(--text-primary)]" />
                     </div>
                     <div>
                       <label className="block text-xs font-medium text-[var(--text-secondary)] mb-1">Số tài khoản thụ hưởng</label>
-                      <input type="text" defaultValue="190366668888" className="w-full p-2 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-lg text-sm text-[var(--text-primary)]" />
+                      <input type="text" value={settings.SEPAY_ACCOUNT || ''} onChange={e => updateSetting('SEPAY_ACCOUNT', e.target.value)} className="w-full p-2 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-lg text-sm text-[var(--text-primary)]" />
                     </div>
                   </div>
                 </div>
@@ -174,18 +200,18 @@ export default function AdminSettings() {
                 <div className="grid md:grid-cols-2 gap-6">
                   <div>
                     <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Chính sách Mật khẩu</label>
-                    <select className="w-full p-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] outline-none">
+                    <select value={settings.PASSWORD_POLICY || 'medium'} onChange={e => updateSetting('PASSWORD_POLICY', e.target.value)} className="w-full p-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] outline-none">
                       <option value="medium">Trung bình (8 ký tự, có số)</option>
                       <option value="strong">Mạnh (8 ký tự, có số, chữ hoa, ký tự đặc biệt)</option>
                     </select>
                   </div>
                   <div>
                     <label className="block text-sm font-medium text-[var(--text-primary)] mb-2">Session Timeout (Phút)</label>
-                    <input type="number" defaultValue="120" className="w-full p-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] outline-none" />
+                    <input type="number" value={settings.SESSION_TIMEOUT || '120'} onChange={e => updateSetting('SESSION_TIMEOUT', e.target.value)} className="w-full p-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] outline-none" />
                   </div>
                   <div className="md:col-span-2">
                     <label className="flex items-center gap-3">
-                      <input type="checkbox" className="w-5 h-5 rounded border-gray-300 text-[var(--color-ocean-600)] focus:ring-[var(--color-ocean-600)]" defaultChecked />
+                      <input type="checkbox" checked={settings.ADMIN_2FA_REQUIRED === 'true'} onChange={e => updateSetting('ADMIN_2FA_REQUIRED', e.target.checked ? 'true' : 'false')} className="w-5 h-5 rounded border-gray-300 text-[var(--color-ocean-600)] focus:ring-[var(--color-ocean-600)]" />
                       <span className="text-sm font-medium text-[var(--text-primary)]">Bật xác thực 2 bước (2FA) cho toàn bộ Admin</span>
                     </label>
                   </div>
@@ -202,7 +228,7 @@ export default function AdminSettings() {
                   <div className="flex items-center justify-between mb-2">
                     <h3 className="font-bold text-red-700 dark:text-red-400">Chế độ bảo trì (Maintenance Mode)</h3>
                     <label className="relative inline-flex items-center cursor-pointer">
-                      <input type="checkbox" className="sr-only peer" />
+                      <input type="checkbox" checked={settings.MAINTENANCE_MODE === 'true'} onChange={e => updateSetting('MAINTENANCE_MODE', e.target.checked ? 'true' : 'false')} className="sr-only peer" />
                       <div className="w-11 h-6 bg-red-200 peer-focus:outline-none rounded-full peer dark:bg-red-800 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-red-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-red-600"></div>
                     </label>
                   </div>

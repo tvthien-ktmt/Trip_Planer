@@ -1,17 +1,29 @@
 'use client';
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { Plane, CheckCircle2 } from 'lucide-react';
+import { Plane, CheckCircle2, Loader2 } from 'lucide-react';
+import { toast } from 'sonner';
 
 export default function CheckIn() {
   const [pnr, setPnr] = useState('');
   const [name, setName] = useState('');
+  const [loading, setLoading] = useState(false);
   const navigate = useRouter();
 
-  const handleCheckIn = (e: React.FormEvent) => {
+  const handleCheckIn = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (pnr && name) {
+    if (!pnr || !name) return;
+
+    setLoading(true);
+    try {
+      const { api } = await import('../../lib/api');
+      await api.post(`/bookings/pnr/${pnr}/check-in`, { name });
+      toast.success('Check-in thành công!');
       navigate.push(`/boarding-pass/${pnr}`);
+    } catch (error: any) {
+      toast.error(error.response?.data?.message || 'Không thể check-in. Vui lòng kiểm tra lại thông tin.');
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -54,8 +66,13 @@ export default function CheckIn() {
             />
           </div>
 
-          <button type="submit" className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors">
-            Tiếp tục <Plane className="w-5 h-5" />
+          <button 
+            type="submit" 
+            disabled={loading}
+            className="w-full py-4 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold flex items-center justify-center gap-2 transition-colors disabled:opacity-70 disabled:cursor-not-allowed"
+          >
+            {loading ? <Loader2 className="w-5 h-5 animate-spin" /> : 'Tiếp tục'}
+            {!loading && <Plane className="w-5 h-5" />}
           </button>
         </form>
       </div>

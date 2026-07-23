@@ -246,4 +246,14 @@ export class BookingController {
     await this.bookingService.verifyOwnership(id, user.id);
     return this.bookingService.getTicketData(id);
   }
+
+  @Post('pnr/:pnr/check-in')
+  @ApiOperation({ summary: 'Online check-in by PNR' })
+  async checkIn(
+    @Param('pnr') pnr: string,
+    @Body() dto: { name: string },
+    @CurrentUser() user: any,
+  ) {
+    return this.bookingService.checkIn(pnr, dto.name, user.id);
+  }
 }

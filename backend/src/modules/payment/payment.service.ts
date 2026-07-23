@@ -9,6 +9,7 @@ import { ConfigService } from '@nestjs/config';
 import { BookingService } from '../booking/booking.service';
 import * as crypto from 'crypto';
 import * as qs from 'qs';
+import { EmailService } from '../email/email.service';
 
 @Injectable()
 export class PaymentService {
@@ -16,6 +17,7 @@ export class PaymentService {
     private prisma: PrismaService,
     private configService: ConfigService,
     private bookingService: BookingService,
+    private emailService: EmailService,
   ) {}
 
   async initiatePayment(bookingId: bigint, userId: bigint) {
@@ -331,6 +333,29 @@ export class PaymentService {
           where: { id: payment.id },
           data: { status: 'LATE_PAYMENT' },
         });
+        
+        // BE-011 fix: Auto-create refund request and send email
+        await tx.refund.create({
+          data: {
+            paymentId: payment.id,
+            amount: payment.amount,
+            reason: 'LATE_PAYMENT: Nhận tiền sau khi mã QR đã hết hạn',
+            status: 'REQUESTED'
+          }
+        });
+        
+        const user = await tx.user.findUnique({ where: { id: payment.booking.userId } });
+        if (user) {
+          await this.emailService.sendRefundResult({
+            to: user.email,
+            fullName: user.fullName || 'Quý khách',
+            bookingCode: payment.booking.bookingCode,
+            amount: payment.amount.toNumber(),
+            currency: 'VND',
+            status: 'REQUESTED',
+            reason: 'Thanh toán nhận được sau khi mã QR hết hạn. Chúng tôi đang xử lý hoàn tiền cho bạn.'
+          });
+        }
         return;
       }
 

@@ -1,13 +1,55 @@
 import { Smartphone, Monitor, ShieldCheck, KeyRound } from 'lucide-react';
 import { toast } from 'sonner';
+import { useState, useEffect } from 'react';
+import { api } from '../../lib/api';
 
 export default function Security() {
-  const handleToggle2FA = () => {
-    toast.success('Đã cập nhật cài đặt 2FA');
+  const [devices, setDevices] = useState<any[]>([]);
+  const [passwords, setPasswords] = useState({ current: '', new: '' });
+
+  useEffect(() => {
+    fetchDevices();
+  }, []);
+
+  const fetchDevices = async () => {
+    try {
+      const res = await api.get('/auth/devices');
+      setDevices(res.data || []);
+    } catch (err) {
+      console.error('Failed to load devices', err);
+    }
   };
 
-  const handleLogoutDevice = () => {
-    toast.success('Đã đăng xuất khỏi thiết bị');
+  const handleToggle2FA = () => {
+    toast.success('Tính năng đang được phát triển');
+  };
+
+  const handleLogoutDevice = async (id: string) => {
+    try {
+      await api.delete(`/auth/devices/${id}`);
+      toast.success('Đã đăng xuất khỏi thiết bị');
+      fetchDevices();
+    } catch (err) {
+      toast.error('Lỗi khi đăng xuất');
+    }
+  };
+
+  const handleChangePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!passwords.current || !passwords.new) {
+      toast.error('Vui lòng nhập đầy đủ thông tin');
+      return;
+    }
+    try {
+      await api.post('/auth/change-password', {
+        currentPassword: passwords.current,
+        newPassword: passwords.new
+      });
+      toast.success('Đổi mật khẩu thành công');
+      setPasswords({ current: '', new: '' });
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Lỗi khi đổi mật khẩu');
+    }
   };
 
   return (
@@ -22,19 +64,19 @@ export default function Security() {
           </div>
           <h2 className="text-lg font-bold text-gray-900 dark:text-white">Đổi mật khẩu</h2>
         </div>
-        <div className="space-y-4 max-w-sm">
+        <form onSubmit={handleChangePassword} className="space-y-4 max-w-sm">
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mật khẩu hiện tại</label>
-            <input type="password" placeholder="••••••••" className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500" />
+            <input type="password" value={passwords.current} onChange={e => setPasswords({ ...passwords, current: e.target.value })} placeholder="••••••••" className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500" />
           </div>
           <div>
             <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Mật khẩu mới</label>
-            <input type="password" placeholder="••••••••" className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500" />
+            <input type="password" value={passwords.new} onChange={e => setPasswords({ ...passwords, new: e.target.value })} placeholder="••••••••" className="w-full p-3 bg-gray-50 dark:bg-gray-900 border border-gray-200 dark:border-gray-700 rounded-xl text-gray-900 dark:text-white focus:ring-2 focus:ring-blue-500" />
           </div>
-          <button className="px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors w-full">
+          <button type="submit" className="px-6 py-2.5 bg-gray-900 dark:bg-white text-white dark:text-gray-900 rounded-xl font-bold hover:bg-gray-800 dark:hover:bg-gray-100 transition-colors w-full">
             Cập nhật mật khẩu
           </button>
-        </div>
+        </form>
       </div>
 
       {/* 2FA */}
@@ -58,29 +100,24 @@ export default function Security() {
       <div className="bg-white dark:bg-gray-800 rounded-2xl shadow-sm border border-gray-100 dark:border-gray-700 p-6">
         <h2 className="text-lg font-bold text-gray-900 dark:text-white mb-4">Thiết bị đã đăng nhập</h2>
         <div className="space-y-4">
-          <div className="flex items-center justify-between p-4 bg-blue-50 dark:bg-blue-900/10 border border-blue-100 dark:border-blue-900/30 rounded-xl">
-            <div className="flex items-center gap-4">
-              <Monitor className="w-8 h-8 text-blue-600" />
-              <div>
-                <p className="font-bold text-gray-900 dark:text-white">Windows PC - Chrome</p>
-                <p className="text-xs text-gray-500 mt-0.5">TP. Hồ Chí Minh, Việt Nam • Thiết bị hiện tại</p>
+          {devices.map((device: any) => (
+            <div key={device.id} className={`flex items-center justify-between p-4 border rounded-xl ${device.isCurrent ? 'bg-blue-50 border-blue-100' : 'border-gray-100'}`}>
+              <div className="flex items-center gap-4">
+                {device.deviceType === 'Mobile' ? <Smartphone className="w-8 h-8 text-gray-400" /> : <Monitor className="w-8 h-8 text-blue-600" />}
+                <div>
+                  <p className="font-bold text-gray-900 dark:text-white">{device.deviceName || 'Thiết bị không rõ'}</p>
+                  <p className="text-xs text-gray-500 mt-0.5">{device.location || 'Không xác định'} {device.isCurrent ? '• Thiết bị hiện tại' : ''}</p>
+                </div>
               </div>
+              {device.isCurrent ? (
+                <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded-md">Đang hoạt động</span>
+              ) : (
+                <button onClick={() => handleLogoutDevice(device.id)} className="text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 px-3 py-1.5 rounded-lg transition-colors">
+                  Đăng xuất
+                </button>
+              )}
             </div>
-            <span className="text-xs font-bold text-green-600 bg-green-100 px-2 py-1 rounded-md">Đang hoạt động</span>
-          </div>
-          
-          <div className="flex items-center justify-between p-4 border border-gray-100 dark:border-gray-700 rounded-xl">
-            <div className="flex items-center gap-4">
-              <Smartphone className="w-8 h-8 text-gray-400" />
-              <div>
-                <p className="font-bold text-gray-900 dark:text-white">iPhone 14 Pro - Safari</p>
-                <p className="text-xs text-gray-500 mt-0.5">Hà Nội, Việt Nam • Đăng nhập hôm qua</p>
-              </div>
-            </div>
-            <button onClick={handleLogoutDevice} className="text-sm font-medium text-red-600 hover:bg-red-50 dark:hover:bg-red-900/20 px-3 py-1.5 rounded-lg transition-colors">
-              Đăng xuất
-            </button>
-          </div>
+          ))}
         </div>
       </div>
     </div>

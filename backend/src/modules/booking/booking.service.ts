@@ -581,4 +581,35 @@ export class BookingService {
     };
   }
 
+  async checkIn(pnr: string, name: string, userId: bigint) {
+    const booking = await this.prisma.extended.booking.findUnique({
+      where: { bookingCode: pnr },
+      include: { passengers: true }
+    });
+
+    if (!booking) {
+      throw new NotFoundException('Không tìm thấy mã đặt chỗ (PNR)');
+    }
+
+    if (booking.userId !== userId) {
+      throw new ForbiddenException('Bạn không có quyền truy cập mã đặt chỗ này');
+    }
+
+    if (booking.status !== 'CONFIRMED' && booking.status !== 'COMPLETED') {
+      throw new BadRequestException('Chuyến bay chưa được xác nhận hoặc đã bị hủy');
+    }
+
+    const nameUpper = name.trim().toUpperCase();
+    const hasPassenger = booking.passengers.some(p => 
+      p.fullName.toUpperCase().includes(nameUpper) || nameUpper.includes(p.fullName.toUpperCase())
+    );
+
+    if (!hasPassenger) {
+      throw new BadRequestException('Tên hành khách không khớp với mã đặt chỗ');
+    }
+
+    // In a real system, this would update check-in status or issue a boarding pass.
+    // For now, we return success so the frontend can redirect to the boarding pass.
+    return { success: true, bookingId: booking.id.toString(), message: 'Check-in thành công' };
+  }
 }

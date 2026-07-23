@@ -1,7 +1,45 @@
-import { MessageSquare, Send } from 'lucide-react';
+'use client';
+import { useState } from 'react';
+import { MessageSquare, Send, Loader2 } from 'lucide-react';
 import { Button } from '../../components/ui/Button';
+import { api } from '../../lib/api';
+import { toast } from 'sonner';
+import { useAuthStore } from '../../stores/authStore';
 
 export default function Feedback() {
+  const { user } = useAuthStore();
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const [formData, setFormData] = useState({
+    subject: '',
+    rating: '',
+    message: '',
+  });
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!formData.subject || !formData.rating || !formData.message) {
+      toast.error('Vui lòng điền đầy đủ thông tin bắt buộc');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      await api.post('/api/contact', {
+        fullName: user?.fullName || 'Người dùng ẩn danh',
+        email: user?.email || 'no-reply@tripplanner.vn',
+        subject: `[Phản hồi - ${formData.subject}] Đánh giá: ${formData.rating} sao`,
+        message: formData.message,
+      });
+
+      toast.success('Gửi phản hồi thành công. Cảm ơn bạn đã đóng góp ý kiến!');
+      setFormData({ subject: '', rating: '', message: '' });
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Lỗi khi gửi phản hồi, vui lòng thử lại');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center border-b border-[var(--border-main)] pb-4">
@@ -12,10 +50,14 @@ export default function Feedback() {
       </div>
 
       <div className="max-w-2xl bg-[var(--bg-surface)] p-6 rounded-[var(--radius-radius-md)] border border-[var(--border-main)] shadow-sm">
-        <form className="space-y-5">
+        <form onSubmit={handleSubmit} className="space-y-5">
           <div>
             <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Chủ đề phản hồi *</label>
-            <select className="w-full px-4 py-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-ocean-600)] transition-colors appearance-none">
+            <select 
+              value={formData.subject}
+              onChange={(e) => setFormData({ ...formData, subject: e.target.value })}
+              className="w-full px-4 py-2.5 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-ocean-600)] transition-colors appearance-none"
+            >
               <option value="">Chọn chủ đề...</option>
               <option value="app_bug">Báo lỗi ứng dụng / trang web</option>
               <option value="service_quality">Chất lượng dịch vụ tour / vé máy bay</option>
@@ -30,7 +72,14 @@ export default function Feedback() {
             <div className="flex gap-4">
               {[1, 2, 3, 4, 5].map((num) => (
                 <label key={num} className="cursor-pointer relative">
-                  <input type="radio" name="rating" value={num} className="sr-only peer" />
+                  <input 
+                    type="radio" 
+                    name="rating" 
+                    value={num}
+                    checked={formData.rating === String(num)}
+                    onChange={(e) => setFormData({ ...formData, rating: e.target.value })}
+                    className="sr-only peer" 
+                  />
                   <div className="w-10 h-10 flex items-center justify-center rounded-full border border-[var(--border-main)] text-[var(--text-secondary)] peer-checked:bg-[var(--color-ocean-600)] peer-checked:text-white peer-checked:border-[var(--color-ocean-600)] transition-colors hover:bg-[var(--bg-main)]">
                     {num}
                   </div>
@@ -44,6 +93,8 @@ export default function Feedback() {
             <label className="block text-sm font-medium text-[var(--text-primary)] mb-1">Mô tả chi tiết *</label>
             <textarea 
               rows={5} 
+              value={formData.message}
+              onChange={(e) => setFormData({ ...formData, message: e.target.value })}
               className="w-full px-4 py-3 bg-[var(--bg-main)] border border-[var(--border-main)] rounded-xl text-[var(--text-primary)] focus:outline-none focus:border-[var(--color-ocean-600)] transition-colors resize-none"
               placeholder="Vui lòng chia sẻ chi tiết phản hồi của bạn tại đây..."
               required
@@ -70,8 +121,8 @@ export default function Feedback() {
           </div>
 
           <div className="pt-4">
-            <Button variant="primary" type="submit" className="w-full sm:w-auto flex items-center justify-center gap-2">
-              <Send className="w-4 h-4" /> Gửi phản hồi
+            <Button variant="primary" type="submit" disabled={isSubmitting} className="w-full sm:w-auto flex items-center justify-center gap-2">
+              {isSubmitting ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />} Gửi phản hồi
             </Button>
           </div>
         </form>

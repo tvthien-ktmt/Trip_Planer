@@ -204,6 +204,7 @@ model Flight {
   seats       FlightSeat[]
 
   @@index([departureAirportId, arrivalAirportId, departureTime]) // composite index
+  @@index([flightNumber, departureTime]) // R6-DB-018: Add flightNumber index
 }
 
 enum FlightStatus {
@@ -505,6 +506,7 @@ model VoucherRedemption {
   redeemedAt DateTime @default(now())
 
   @@unique([voucherId, bookingId]) // prevent applying same voucher to same booking twice
+  @@unique([userId, voucherId]) // R6-DB-021: prevent user from using same voucher multiple times
   @@index([userId]) // DB-018
   @@index([voucherId]) // DB-018
 }

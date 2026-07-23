@@ -43,7 +43,7 @@ export interface RefundResultJob {
   bookingCode: string;
   amount: number;
   currency: string;
-  status: 'APPROVED' | 'REJECTED';
+  status: 'REQUESTED' | 'APPROVED' | 'REJECTED';
   reason?: string;
 }
 

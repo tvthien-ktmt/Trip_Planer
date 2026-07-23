@@ -218,6 +218,19 @@ export class AuthController {
     return this.authService.resetPassword(dto.email, dto.otp, dto.newPassword);
   }
 
+  @Post('change-password')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @HttpCode(HttpStatus.OK)
+  @ApiOperation({ summary: 'Change password for authenticated user' })
+  async changePassword(@CurrentUser() user: any, @Body() body: any) {
+    if (!body.currentPassword || !body.newPassword) {
+      const { BadRequestException: BadReq } = await import('@nestjs/common');
+      throw new BadReq('Vui lòng cung cấp mật khẩu hiện tại và mật khẩu mới');
+    }
+    return this.authService.changePassword(user.id, body.currentPassword, body.newPassword);
+  }
+
   // ===== OTP VERIFICATION (for FE VerifyOTP.tsx) =====
 
   @Post('verify-otp')

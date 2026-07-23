@@ -1,13 +1,14 @@
 'use client';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuthStore, useUIStore, useWishlistStore } from '../../stores';
 import { useToursQuery } from '../../hooks/queries';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { User, History, Heart, Settings as SettingsIcon, LogOut, ChevronRight } from 'lucide-react';
+import { User, History, Heart, Settings as SettingsIcon, LogOut, ChevronRight, Loader2 } from 'lucide-react';
 import { PriceTag } from '../../components/common/PriceTag';
 import { RatingStars } from '../../components/common/RatingStars';
 import { routes } from '../../lib/routes';
+import { toast } from 'sonner';
 
 export default function Settings() {
   const { user, isAuthenticated, logout } = useAuthStore();
@@ -17,6 +18,18 @@ export default function Settings() {
   const navigate = useRouter();
 
   const [activeTab, setActiveTab] = useState<'profile' | 'bookings' | 'wishlist' | 'preferences'>('profile');
+  
+  // Profile Form State
+  const [fullName, setFullName] = useState(user?.name || user?.fullName || '');
+  const [phone, setPhone] = useState(user?.phone || '');
+  const [isUpdating, setIsUpdating] = useState(false);
+
+  useEffect(() => {
+    if (user) {
+      setFullName(user.name || user.fullName || '');
+      setPhone(user.phone || '');
+    }
+  }, [user]);
 
   if (!isAuthenticated) {
     return (
@@ -33,6 +46,27 @@ export default function Settings() {
   const handleLogout = () => {
     logout();
     navigate.push('/');
+  };
+
+  const handleUpdateProfile = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsUpdating(true);
+    try {
+      const { api } = await import('../../lib/api');
+      const res = await api.patch('/users/me', { fullName, phone });
+      
+      // Update local store
+      const { setAuthUser } = useAuthStore.getState() as any;
+      if (setAuthUser) {
+        setAuthUser({ ...user, name: res.data.fullName, fullName: res.data.fullName, phone: res.data.phone });
+      }
+      
+      toast.success('Cập nhật hồ sơ thành công');
+    } catch (err: any) {
+      toast.error(err.response?.data?.message || 'Không thể cập nhật hồ sơ');
+    } finally {
+      setIsUpdating(false);
+    }
   };
 
   const wishlistTours = tours?.filter(t => wishlist.includes(t.id)) || [];
@@ -75,27 +109,27 @@ export default function Settings() {
         {/* Content */}
         <div className="flex-1 bg-white dark:bg-gray-800 rounded-2xl p-6 md:p-8 shadow-sm border border-gray-100 dark:border-gray-700 min-h-[400px]">
           {activeTab === 'profile' && (
-            <div>
+            <form onSubmit={handleUpdateProfile}>
               <h2 className="text-2xl font-bold mb-6 dark:text-white">Hồ sơ cá nhân</h2>
               <div className="flex items-center gap-6 mb-8 pb-8 border-b border-gray-100 dark:border-gray-700">
                 <div className="w-24 h-24 bg-blue-100 dark:bg-gray-700 rounded-full flex items-center justify-center text-blue-600 dark:text-gray-300 text-3xl font-bold">
-                  {user?.name.charAt(0)}
+                  {(user?.name || user?.fullName || 'U').charAt(0).toUpperCase()}
                 </div>
                 <div>
-                  <h3 className="text-xl font-bold dark:text-white">{user?.name}</h3>
+                  <h3 className="text-xl font-bold dark:text-white">{user?.name || user?.fullName}</h3>
                   <p className="text-gray-500">{user?.email}</p>
-                  <button className="mt-2 text-sm text-blue-600 font-medium hover:underline">Thay đổi ảnh đại diện</button>
+                  <button type="button" className="mt-2 text-sm text-blue-600 font-medium hover:underline">Thay đổi ảnh đại diện</button>
                 </div>
               </div>
               
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Họ và tên</label>
-                  <input type="text" defaultValue={user?.name} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" />
+                  <input type="text" value={fullName} onChange={e => setFullName(e.target.value)} required className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Số điện thoại</label>
-                  <input type="text" defaultValue={user?.phone || '0987654321'} className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" />
+                  <input type="text" value={phone} onChange={e => setPhone(e.target.value)} placeholder="0987654321" className="w-full p-2.5 border border-gray-300 dark:border-gray-600 rounded-lg dark:bg-gray-700 dark:text-white" />
                 </div>
                 <div>
                   <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">Email</label>
@@ -103,35 +137,19 @@ export default function Settings() {
                 </div>
               </div>
               <div className="mt-8">
-                <button className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors">
+                <button type="submit" disabled={isUpdating} className="flex items-center gap-2 bg-blue-600 hover:bg-blue-700 text-white px-6 py-2.5 rounded-lg font-medium transition-colors disabled:opacity-70">
+                  {isUpdating && <Loader2 className="w-4 h-4 animate-spin" />}
                   Lưu thay đổi
                 </button>
               </div>
-            </div>
+            </form>
           )}
 
           {activeTab === 'bookings' && (
             <div>
               <h2 className="text-2xl font-bold mb-6 dark:text-white">Lịch sử đặt chỗ</h2>
               <div className="space-y-4">
-                {/* Mock Booking Item */}
-                <div className="border border-gray-100 dark:border-gray-700 rounded-xl p-4 flex flex-col md:flex-row gap-4">
-                  <div className="w-full md:w-32 h-24 bg-gray-200 dark:bg-gray-700 rounded-lg overflow-hidden">
-                    <img src="https://images.unsplash.com/photo-1528127269322-539801943592?q=80&w=2070" className="w-full h-full object-cover" alt="tour" />
-                  </div>
-                  <div className="flex-1">
-                    <div className="flex justify-between items-start mb-2">
-                      <h4 className="font-bold text-gray-900 dark:text-white">Khám phá Vịnh Hạ Long 2 ngày 1 đêm</h4>
-                      <span className="px-2 py-1 text-xs font-bold rounded bg-green-100 text-green-600">Đã xác nhận</span>
-                    </div>
-                    <div className="text-sm text-gray-500 mb-1">Ngày đi: 20/08/2024</div>
-                    <div className="text-sm text-gray-500 mb-2">Khách: 2 Người lớn</div>
-                    <div className="flex justify-between items-end">
-                      <PriceTag amount={6400000} className="font-bold" />
-                      <button className="text-sm text-blue-600 font-medium hover:underline">Xem chi tiết</button>
-                    </div>
-                  </div>
-                </div>
+                <div className="text-gray-500 text-center py-8">Vui lòng truy cập trang Lịch sử đặt chỗ chi tiết.</div>
               </div>
             </div>
           )}

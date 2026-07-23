@@ -1,6 +1,22 @@
 import { Users, Filter } from 'lucide-react';
+import { useState, useEffect } from 'react';
+import { api } from '../../../lib/api';
 
 export default function PassengerReport() {
+  const [data, setData] = useState({
+    totalPassengers: 0,
+    seatDistribution: { economy: 0, business: 0, firstClass: 0 },
+    history: []
+  });
+
+  useEffect(() => {
+    api.get('/admin/analytics/passengers').then(res => {
+      setData(res.data);
+    }).catch(err => {
+      console.error('Failed to load passenger stats', err);
+    });
+  }, []);
+
   return (
     <div className="space-y-6">
       <div className="flex justify-between items-center">
@@ -21,8 +37,8 @@ export default function PassengerReport() {
               <Users className="w-6 h-6" />
             </div>
           </div>
-          <p className="text-4xl font-black text-gray-900 dark:text-white mb-2">124,560</p>
-          <p className="text-sm text-gray-500">Người / Năm</p>
+          <p className="text-4xl font-black text-gray-900 dark:text-white mb-2">{data.totalPassengers.toLocaleString()}</p>
+          <p className="text-sm text-gray-500">Người / Toàn thời gian</p>
         </div>
 
         <div className="bg-white dark:bg-gray-900 p-6 rounded-2xl border border-gray-200 dark:border-gray-800 shadow-sm">
@@ -31,28 +47,28 @@ export default function PassengerReport() {
             <div>
               <div className="flex justify-between text-sm mb-1">
                 <span className="font-medium text-gray-700 dark:text-gray-300">Phổ thông (Economy)</span>
-                <span className="font-bold text-gray-900 dark:text-white">75%</span>
+                <span className="font-bold text-gray-900 dark:text-white">{data.seatDistribution.economy}%</span>
               </div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div className="bg-blue-600 h-2 rounded-full" style={{ width: '75%' }}></div>
+                <div className="bg-blue-600 h-2 rounded-full" style={{ width: `${data.seatDistribution.economy}%` }}></div>
               </div>
             </div>
             <div>
               <div className="flex justify-between text-sm mb-1">
                 <span className="font-medium text-gray-700 dark:text-gray-300">Thương gia (Business)</span>
-                <span className="font-bold text-gray-900 dark:text-white">20%</span>
+                <span className="font-bold text-gray-900 dark:text-white">{data.seatDistribution.business}%</span>
               </div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div className="bg-purple-600 h-2 rounded-full" style={{ width: '20%' }}></div>
+                <div className="bg-purple-600 h-2 rounded-full" style={{ width: `${data.seatDistribution.business}%` }}></div>
               </div>
             </div>
             <div>
               <div className="flex justify-between text-sm mb-1">
                 <span className="font-medium text-gray-700 dark:text-gray-300">Hạng nhất (First Class)</span>
-                <span className="font-bold text-gray-900 dark:text-white">5%</span>
+                <span className="font-bold text-gray-900 dark:text-white">{data.seatDistribution.firstClass}%</span>
               </div>
               <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-2">
-                <div className="bg-yellow-500 h-2 rounded-full" style={{ width: '5%' }}></div>
+                <div className="bg-yellow-500 h-2 rounded-full" style={{ width: `${data.seatDistribution.firstClass}%` }}></div>
               </div>
             </div>
           </div>
